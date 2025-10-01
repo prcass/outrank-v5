@@ -1485,6 +1485,7 @@
         }
 
         let hasStartedGame = false;
+        let lastSyncedRound = 0;
 
         function syncGameStateFromFirebase() {
             const roomCode = localStorage.getItem('currentRoomCode');
@@ -1500,22 +1501,52 @@
                     const fbPlayers = gameData.players || {};
                     const fbGameState = gameData.gameState || {};
 
+                    // Store player IDs for reference
+                    window.playerIds = Object.keys(fbPlayers);
+
                     // Convert Firebase player object to array for V4 compatibility
-                    const playerIds = Object.keys(fbPlayers);
-                    gameState.players = playerIds.map(id => fbPlayers[id]);
+                    gameState.players = window.playerIds.map(id => fbPlayers[id]);
 
                     // Copy game state fields
                     Object.assign(gameState, fbGameState);
 
-                    // Update UI based on phase (only transition once)
+                    console.log('🔄 Synced state:', {
+                        phase: gameState.phase,
+                        round: gameState.round,
+                        currentPlayer: gameState.currentPlayer,
+                        playerCount: gameState.players.length
+                    });
+
+                    // Update UI based on phase
                     if (gameState.phase === 'challenge' && !hasStartedGame) {
                         hasStartedGame = true;
                         // Show game screen and start round
                         showScreen('gameScreen');
                         startNewRound();
+                    } else if (hasStartedGame) {
+                        // Continuous UI updates during gameplay
+                        updateGameUI();
                     }
                 }
             });
+        }
+
+        function updateGameUI() {
+            // Update player displays
+            updatePlayerDisplay();
+
+            // Update current player indicator
+            const currentPlayerName = GameModeManager.getCurrentPlayer()?.name;
+            const turnIndicator = document.getElementById('currentPlayerName');
+            if (turnIndicator && currentPlayerName) {
+                turnIndicator.textContent = currentPlayerName;
+            }
+
+            // Update round display
+            const roundDisplay = document.getElementById('roundDisplay');
+            if (roundDisplay) {
+                roundDisplay.textContent = `Round ${gameState.round} of ${gameState.maxRounds}`;
+            }
         }
 
         // ===== GAME FLOW =====
@@ -1726,7 +1757,13 @@
             modal.classList.add('active');
         }
 
-        function selectChallengeCard(cardIndex) {
+        async function selectChallengeCard(cardIndex) {
+            // Turn validation for online mode
+            if (GameModeManager.isOnline() && !GameModeManager.isMyTurn()) {
+                showNotification("Wait for your turn!", 'warning');
+                return;
+            }
+
             const cardData = gameState.drawnChallengeCards[cardIndex];
             const challenge = cardData.challenge;
             gameState.currentChallenge = challenge;
@@ -1808,6 +1845,22 @@
             // Don't clear lastToPass - it persists across rounds until someone else earns it
             gameState.currentPlayer = gameState.firstGuesser;
             gameState.selectedDraftToken = null;
+
+            // Sync to Firebase if online mode
+            if (GameModeManager.isOnline()) {
+                await GameModeManager.updateGameState({
+                    currentChallenge: challenge,
+                    playedChallenges: gameState.playedChallenges,
+                    selectedCategory: gameState.selectedCategory,
+                    previousCategory: gameState.previousCategory,
+                    centerToken: gameState.centerToken,
+                    draftPool: gameState.draftPool,
+                    passedPlayers: Array.from(gameState.passedPlayers),
+                    currentPlayer: gameState.currentPlayer,
+                    selectedDraftToken: null
+                });
+                console.log('✅ Synced challenge selection to Firebase');
+            }
 
             // Update UI
             updateGameUI();
