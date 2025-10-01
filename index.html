@@ -1467,7 +1467,16 @@
                 round: 1,
                 maxRounds: maxRounds,
                 currentPlayer: 0,
-                firstGuesser: 0
+                firstGuesser: 0,
+                challengeMode: 'cards', // V4 uses card-based challenges
+                playedChallenges: [],
+                drawnChallengeCards: [],
+                draftPool: [],
+                centerToken: null,
+                passedPlayers: [],
+                selectedDraftToken: null,
+                selectedCategory: null,
+                previousCategory: null
             });
 
             console.log('✅ Game started with', maxRounds, 'rounds');
