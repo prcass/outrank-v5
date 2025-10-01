@@ -4,7 +4,7 @@ Strategic token drafting and guessing game with **local and online multiplayer**
 
 ## 🎮 Play Now
 
-**Live Demo:** Coming soon (GitHub Pages)
+**Live Demo:** https://prcass.github.io/outrank-v5/
 
 ## ✨ Features
 
