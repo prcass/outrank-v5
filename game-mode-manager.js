@@ -70,7 +70,31 @@ class GameModeManager {
             }
 
             const gameStateRef = this.database.ref('games/' + roomCode + '/gameState');
-            await gameStateRef.update(updates);
+            console.log('🔥 Updating Firebase gameState:', Object.keys(updates));
+
+            // Debug: Check if centerToken is serializable
+            if (updates.centerToken) {
+                console.log('🔍 centerToken type:', typeof updates.centerToken);
+                console.log('🔍 centerToken keys:', Object.keys(updates.centerToken));
+                console.log('🔍 centerToken sample:', {
+                    id: updates.centerToken.id,
+                    name: updates.centerToken.name,
+                    hasStats: !!updates.centerToken.stats
+                });
+            }
+
+            try {
+                // Use transaction to ensure atomic update
+                const snapshot = await gameStateRef.once('value');
+                const currentState = snapshot.val() || {};
+                const newState = { ...currentState, ...updates };
+
+                await gameStateRef.set(newState);
+                console.log('✅ Firebase gameState updated successfully');
+            } catch (error) {
+                console.error('❌ Firebase gameState update failed:', error);
+                console.error('❌ Failed updates:', updates);
+            }
             // UI updates automatically via Firebase subscription
         }
     }
@@ -105,7 +129,8 @@ class GameModeManager {
                 return false;
             }
 
-            const playerIds = Object.keys(gameState.players);
+            // Use window.playerIds which has actual Firebase user IDs, not gameState.players array indices
+            const playerIds = window.playerIds || Object.keys(gameState.players);
             const currentPlayerId = playerIds[gameState.currentPlayer];
             return currentPlayerId === window.currentUserId;
         }

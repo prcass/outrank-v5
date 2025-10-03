@@ -1,0 +1,2990 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>4f4 V4.22 - Multiplayer</title>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+
+    <!-- Load external token dataset with cache buster -->
+    <script src="v4_token_datasets.js?v=7"></script>
+
+    <!-- Firebase configuration and managers -->
+    <script src="firebase-config.js"></script>
+    <script src="game-mode-manager.js"></script>
+    <script src="room-manager.js"></script>
+    <style>
+        /* ===== BASE STYLES ===== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+            touch-action: manipulation;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* ===== SCREEN MANAGEMENT ===== */
+        .screen {
+            display: none;
+        }
+
+        .screen.active {
+            display: block;
+        }
+
+        /* ===== HEADER ===== */
+        .header {
+            background: white;
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            color: #764ba2;
+            font-size: 28px;
+            margin-bottom: 5px;
+        }
+
+        .header .subtitle {
+            color: #666;
+            font-size: 14px;
+        }
+
+        /* ===== BUTTONS ===== */
+        .btn {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            touch-action: manipulation;
+        }
+
+        .btn:active {
+            transform: scale(0.95);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        .btn-primary:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* ===== SETUP SCREEN ===== */
+        .setup-content {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #764ba2;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #764ba2;
+        }
+
+        .player-inputs {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .player-inputs input {
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+
+        /* ===== GAME SCREEN ===== */
+        .game-layout {
+            display: grid;
+            grid-template-columns: 250px 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .game-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .panel {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+
+        .panel h2 {
+            color: #764ba2;
+            margin-bottom: 15px;
+            font-size: 18px;
+            border-bottom: 2px solid #f0f0f0;
+            padding-bottom: 10px;
+        }
+
+        /* ===== PLAYER INFO PANEL ===== */
+        .player-info {
+            padding: 12px;
+            margin-bottom: 10px;
+            background: #f8f8f8;
+            border-radius: 10px;
+            border: 2px solid transparent;
+        }
+
+        .player-info.current-player {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+            border-color: #764ba2;
+        }
+
+        .player-info .player-name {
+            font-weight: bold;
+            font-size: 16px;
+            margin-bottom: 5px;
+        }
+
+        .player-info .player-score {
+            font-size: 24px;
+            color: #764ba2;
+            font-weight: bold;
+        }
+
+        .player-info .player-stats {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .first-guesser-marker {
+            display: inline-block;
+            background: gold;
+            color: #333;
+            padding: 2px 8px;
+            border-radius: 5px;
+            font-size: 11px;
+            font-weight: bold;
+            margin-left: 5px;
+        }
+
+        .last-standing-marker {
+            display: inline-block;
+            font-size: 16px;
+            margin-left: 5px;
+            animation: pulse 1s ease-in-out infinite;
+        }
+
+        /* ===== CHALLENGE INFO ===== */
+        .challenge-info {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .challenge-info h3 {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+
+        .challenge-info .stat-name {
+            font-size: 18px;
+            opacity: 0.9;
+        }
+
+        /* ===== TOKEN DISPLAY ===== */
+        .token {
+            background: white;
+            border-radius: 12px;
+            padding: 15px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 3px solid transparent;
+        }
+
+        .token:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .token.selected {
+            border-color: #764ba2;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+        }
+
+        .token .token-name {
+            font-weight: bold;
+            font-size: 16px;
+            margin-bottom: 5px;
+            color: #333;
+        }
+
+        .token .token-value {
+            font-size: 20px;
+            color: #764ba2;
+            font-weight: bold;
+        }
+
+        .token .token-tags {
+            display: flex;
+            gap: 5px;
+            margin-top: 8px;
+        }
+
+        .token-tag {
+            background: #f0f0f0;
+            padding: 3px 8px;
+            border-radius: 5px;
+            font-size: 11px;
+            font-weight: bold;
+            color: #666;
+        }
+
+        /* Hide token data when in hidden mode */
+        body.hide-data .token-value {
+            display: none;
+        }
+
+        /* ===== CENTER TOKEN ===== */
+        .center-token-area {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .center-token-area h3 {
+            margin-bottom: 15px;
+            color: #764ba2;
+        }
+
+        .center-token {
+            display: inline-block;
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+            border: 4px solid #764ba2;
+            min-width: 250px;
+        }
+
+        .center-token .token-name {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .center-token .token-value {
+            font-size: 32px;
+            color: #764ba2;
+            font-weight: bold;
+        }
+
+        /* ===== DRAFT POOL ===== */
+        .draft-pool {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        /* ===== ACTION BUTTONS ===== */
+        .action-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 30px;
+        }
+
+        .action-buttons .btn {
+            flex: 1;
+            max-width: 200px;
+        }
+
+        /* ===== GUESS BUTTONS ===== */
+        .guess-area {
+            display: none;
+            text-align: center;
+            margin: 30px 0;
+            padding: 30px;
+            background: #f8f8f8;
+            border-radius: 15px;
+        }
+
+        .guess-area.active {
+            display: block;
+        }
+
+        .guess-prompt {
+            font-size: 20px;
+            margin-bottom: 20px;
+            font-weight: bold;
+        }
+
+        .guess-buttons {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+        }
+
+        .guess-buttons .btn {
+            font-size: 24px;
+            padding: 20px 50px;
+        }
+
+        /* ===== MODALS ===== */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 1000;
+            padding: 20px;
+        }
+
+        .modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 600px;
+            width: 100%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-content h2 {
+            color: #764ba2;
+            margin-bottom: 20px;
+        }
+
+        /* ===== ANIMATIONS ===== */
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+
+        @keyframes correctFlash {
+            0% { background: white; transform: scale(1); }
+            50% { background: #28a745; transform: scale(1.1); }
+            100% { background: white; transform: scale(1); }
+        }
+
+        @keyframes wrongFlash {
+            0% { background: white; transform: scale(1); }
+            25% { background: #dc3545; transform: scale(0.95); }
+            50% { background: white; transform: scale(1); }
+            75% { background: #dc3545; transform: scale(0.95); }
+            100% { background: white; transform: scale(1); }
+        }
+
+        @keyframes pointsFloat {
+            0% {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+            100% {
+                opacity: 0;
+                transform: translateY(-50px) scale(1.5);
+            }
+        }
+
+        @keyframes celebrate {
+            0%, 100% { transform: rotate(0deg) scale(1); }
+            25% { transform: rotate(-10deg) scale(1.1); }
+            75% { transform: rotate(10deg) scale(1.1); }
+        }
+
+        @keyframes tokenSlide {
+            0% {
+                opacity: 1;
+                transform: translateX(0);
+            }
+            100% {
+                opacity: 0;
+                transform: translateX(100px);
+            }
+        }
+
+        .animate-slide-in {
+            animation: slideIn 0.3s ease-out;
+        }
+
+        .animate-pulse {
+            animation: pulse 0.5s ease-in-out;
+        }
+
+        .animate-shake {
+            animation: shake 0.5s ease-in-out;
+        }
+
+        .animate-correct-flash {
+            animation: correctFlash 0.6s ease-in-out;
+        }
+
+        .animate-wrong-flash {
+            animation: wrongFlash 0.8s ease-in-out;
+        }
+
+        .animate-celebrate {
+            animation: celebrate 0.8s ease-in-out;
+        }
+
+        .points-float {
+            position: absolute;
+            font-size: 32px;
+            font-weight: bold;
+            color: #28a745;
+            animation: pointsFloat 1s ease-out forwards;
+            pointer-events: none;
+            z-index: 1000;
+        }
+
+        /* ===== NOTIFICATIONS ===== */
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+            z-index: 2000;
+            animation: slideIn 0.3s ease-out;
+            max-width: 300px;
+        }
+
+        .notification.success {
+            border-left: 5px solid #28a745;
+        }
+
+        .notification.error {
+            border-left: 5px solid #dc3545;
+        }
+
+        .notification.info {
+            border-left: 5px solid #17a2b8;
+        }
+
+        /* ===== MOBILE OPTIMIZATIONS ===== */
+        @media (max-width: 375px) {
+            .container {
+                padding: 10px;
+            }
+
+            .header h1 {
+                font-size: 24px;
+            }
+
+            .btn {
+                padding: 12px 20px;
+                font-size: 14px;
+            }
+
+            .draft-pool {
+                grid-template-columns: 1fr;
+            }
+
+            .guess-buttons {
+                flex-direction: column;
+            }
+
+            .guess-buttons .btn {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Mode Indicator -->
+    <div id="modeIndicator" style="position: fixed; top: 10px; right: 10px;
+                                    padding: 8px 15px; border-radius: 20px;
+                                    background: #667eea; color: white;
+                                    font-size: 12px; font-weight: bold;
+                                    z-index: 1000; display: none;">
+        <span id="modeText">🏠 Local</span>
+    </div>
+
+    <div class="container">
+
+        <!-- MODE SELECTION SCREEN -->
+        <div id="modeSelectionScreen" class="screen active">
+            <div class="header">
+                <h1>4f4 V4.22</h1>
+                <p class="subtitle">Multiplayer</p>
+            </div>
+
+            <div class="setup-content">
+                <h2 style="color: #764ba2; margin-bottom: 30px;">How do you want to play?</h2>
+
+                <button class="btn btn-primary" onclick="selectGameMode('local')"
+                        style="width: 100%; margin: 15px 0; padding: 25px; font-size: 18px;">
+                    🏠 Local Multiplayer
+                    <div style="font-size: 14px; margin-top: 8px; opacity: 0.9; font-weight: normal;">
+                        Play on this device (pass and play)
+                    </div>
+                </button>
+
+                <button class="btn btn-primary" onclick="window.open('multiplayer.html?mode=online&v=11', '_blank')"
+                        style="width: 100%; margin: 15px 0; padding: 25px; font-size: 18px;">
+                    🌐 Online Multiplayer
+                    <div style="font-size: 14px; margin-top: 8px; opacity: 0.9; font-weight: normal;">
+                        Play with friends on different devices
+                    </div>
+                </button>
+
+                <div style="background: #f0f0f0; padding: 20px; border-radius: 10px;
+                           margin-top: 30px; font-size: 14px; line-height: 1.6;">
+                    <div style="margin-bottom: 15px;">
+                        <strong>🏠 Local Multiplayer:</strong><br>
+                        • Play on this device<br>
+                        • Pass and play between players<br>
+                        • No internet required<br>
+                        • Great for family game nights
+                    </div>
+                    <div>
+                        <strong>🌐 Online Multiplayer:</strong><br>
+                        • Each player on their own device<br>
+                        • Play with friends anywhere<br>
+                        • Internet required<br>
+                        • Create or join with room code
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ONLINE SETUP SCREEN -->
+        <div id="onlineSetupScreen" class="screen">
+            <div class="header">
+                <h1>4f4 V4.22 - Online</h1>
+                <p class="subtitle">Connect with Friends</p>
+            </div>
+
+            <div class="setup-content">
+                <h2 style="color: #764ba2; margin-bottom: 20px;">Join or Create Game</h2>
+
+                <div class="form-group">
+                    <label for="playerName">Your Name</label>
+                    <input type="text" id="playerName" maxlength="20" placeholder="Enter your name">
+                </div>
+
+                <button class="btn btn-primary" onclick="createNewGame()"
+                        style="width: 100%; margin: 20px 0;">
+                    Create New Game
+                </button>
+
+                <div style="text-align: center; margin: 20px 0; color: #666;">
+                    - OR -
+                </div>
+
+                <div class="form-group">
+                    <label for="roomCode">Room Code</label>
+                    <input type="text" id="roomCode" maxlength="6" placeholder="Enter 6-character code"
+                           style="text-transform: uppercase;">
+                </div>
+
+                <button class="btn btn-primary" onclick="joinExistingGame()"
+                        style="width: 100%; margin: 10px 0;">
+                    Join Game
+                </button>
+
+                <button class="btn btn-secondary" onclick="backToModeSelection()"
+                        style="width: 100%; margin: 20px 0;">
+                    ← Back
+                </button>
+            </div>
+        </div>
+
+        <!-- LOBBY SCREEN (Online Mode) -->
+        <div id="lobbyScreen" class="screen">
+            <div class="header">
+                <h1>Game Lobby</h1>
+                <p class="subtitle" id="lobbyRoomCode">Room: ------</p>
+            </div>
+
+            <div class="setup-content">
+                <h2 style="color: #764ba2; margin-bottom: 20px;">Players</h2>
+
+                <div id="lobbyPlayersList" style="background: #f0f0f0; padding: 15px;
+                                                   border-radius: 10px; margin-bottom: 20px;">
+                    <!-- Players will be listed here dynamically -->
+                </div>
+
+                <div id="hostControls" style="display: none;">
+                    <h3 style="color: #764ba2; margin-top: 30px;">Game Settings</h3>
+
+                    <div class="form-group">
+                        <label for="maxRounds">Number of Rounds</label>
+                        <select id="maxRounds">
+                            <option value="3">3 Rounds</option>
+                            <option value="5" selected>5 Rounds</option>
+                            <option value="7">7 Rounds</option>
+                            <option value="10">10 Rounds</option>
+                        </select>
+                    </div>
+
+                    <button class="btn btn-primary" id="startGameBtn" onclick="startOnlineGame()"
+                            style="width: 100%; margin: 20px 0;" disabled>
+                        Start Game
+                    </button>
+                    <div id="startGameHint" style="text-align: center; color: #999; font-size: 13px; margin-top: -10px;">
+                        Waiting for at least 1 more player...
+                    </div>
+                </div>
+
+                <button class="btn btn-secondary" onclick="leaveLobby()"
+                        style="width: 100%; margin: 10px 0;">
+                    Leave Lobby
+                </button>
+
+                <div id="lobbyStatus" style="text-align: center; margin-top: 20px;
+                                            color: #666; font-size: 14px;">
+                    Waiting for host to start game...
+                </div>
+            </div>
+        </div>
+
+        <!-- LOCAL SETUP SCREEN -->
+        <div id="setupScreen" class="screen">
+            <div class="header">
+                <h1>Outrank V4</h1>
+                <p class="subtitle">Draft & Guess - Push Your Luck!</p>
+            </div>
+
+            <div class="setup-content">
+                <h2 style="color: #764ba2; margin-bottom: 20px;">Game Setup</h2>
+
+                <div class="form-group">
+                    <label for="numPlayers">Number of Players (2-6)</label>
+                    <select id="numPlayers">
+                        <option value="2">2 Players</option>
+                        <option value="3" selected>3 Players</option>
+                        <option value="4">4 Players</option>
+                        <option value="5">5 Players</option>
+                        <option value="6">6 Players</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Player Names</label>
+                    <div id="playerInputs" class="player-inputs">
+                        <!-- Dynamically generated player inputs -->
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="firstPlayer">First Guesser</label>
+                    <select id="firstPlayer">
+                        <option value="0">Youngest Player</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="numRounds">Number of Rounds</label>
+                    <select id="numRounds">
+                        <option value="3">3 Rounds</option>
+                        <option value="5" selected>5 Rounds</option>
+                        <option value="7">7 Rounds</option>
+                        <option value="10">10 Rounds</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="challengeMode">Challenge Selection Mode</label>
+                    <select id="challengeMode">
+                        <option value="manual">📋 Manual - Choose any challenge</option>
+                        <option value="cards" selected>🎴 Challenge Cards - Random draw each round</option>
+                    </select>
+                    <p style="font-size: 12px; color: #666; margin-top: 5px;">
+                        <strong>Manual:</strong> First Guesser picks from all available challenges<br>
+                        <strong>Cards:</strong> 1 random challenge per category, First Guesser picks one
+                    </p>
+                </div>
+
+                <button class="btn btn-primary" style="width: 100%;" onclick="startGame()">Start Game</button>
+            </div>
+        </div>
+
+        <!-- GAME END SCREEN -->
+        <div id="gameEndScreen" class="screen">
+            <div class="header">
+                <h1>🎉 Game Over! 🎉</h1>
+                <p class="subtitle">Final Results</p>
+            </div>
+
+            <div class="setup-content">
+                <div id="winnerAnnouncement" style="background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 30px; border-radius: 15px; margin-bottom: 30px; text-align: center;">
+                    <!-- Winner info dynamically inserted -->
+                </div>
+
+                <h2 style="color: #764ba2; margin-bottom: 20px;">Final Standings</h2>
+                <div id="finalStandings" style="background: white; padding: 20px; border-radius: 15px; margin-bottom: 20px;">
+                    <!-- Final standings dynamically inserted -->
+                </div>
+
+                <h2 style="color: #764ba2; margin-bottom: 20px;">Game Stats</h2>
+                <div id="gameStats" style="background: white; padding: 20px; border-radius: 15px; margin-bottom: 30px;">
+                    <!-- Game stats dynamically inserted -->
+                </div>
+
+                <button class="btn btn-primary" style="width: 100%; margin-bottom: 10px;" onclick="location.reload()">New Game</button>
+            </div>
+        </div>
+
+        <!-- GAME SCREEN -->
+        <div id="gameScreen" class="screen">
+            <div class="header">
+                <h1>4f4 V4.22</h1>
+                <p class="subtitle">Round <span id="roundNumber">1</span></p>
+                <button id="toggleDataBtn" class="btn btn-secondary" style="position: absolute; top: 20px; right: 20px; padding: 8px 15px; font-size: 0.9em;" onclick="toggleDataVisibility()">
+                    👁️ Hide Data
+                </button>
+            </div>
+
+            <div class="game-layout">
+                <!-- PLAYERS PANEL -->
+                <div class="panel">
+                    <h2>Players</h2>
+                    <div id="playersList">
+                        <!-- Dynamically populated player info -->
+                    </div>
+                </div>
+
+                <!-- MAIN GAME AREA -->
+                <div>
+                    <!-- CHALLENGE INFO -->
+                    <div id="challengeInfo" class="challenge-info" style="display: none;">
+                        <h3 id="challengeName">Movies - Box Office</h3>
+                        <p class="stat-name" id="statName">Higher or Lower</p>
+                        <p class="token-carryover-info" id="tokenCarryoverInfo" style="display: none; font-size: 0.9em; color: #ffd700; margin-top: 5px; font-weight: bold;"></p>
+                    </div>
+
+                    <!-- CENTER TOKEN -->
+                    <div id="centerTokenArea" class="center-token-area" style="display: none;">
+                        <h3>Center Token</h3>
+                        <div id="centerToken" class="center-token">
+                            <!-- Token content -->
+                        </div>
+                    </div>
+
+                    <!-- GUESS AREA -->
+                    <div id="guessArea" class="guess-area">
+                        <p class="guess-prompt">Is <strong id="draftedTokenName">Titanic</strong> HIGHER or LOWER than <strong id="centerTokenName">Avatar</strong>?</p>
+                        <div class="guess-buttons">
+                            <button class="btn btn-success" onclick="makeGuess('higher')">📈 HIGHER</button>
+                            <button class="btn btn-danger" onclick="makeGuess('lower')">📉 LOWER</button>
+                        </div>
+                    </div>
+
+                    <!-- DRAFT POOL -->
+                    <div class="panel">
+                        <h2>Draft Pool (<span id="poolCount">12</span> tokens)</h2>
+                        <div id="draftPool" class="draft-pool">
+                            <!-- Dynamically populated tokens -->
+                        </div>
+                    </div>
+
+                    <!-- ACTION BUTTONS -->
+                    <div class="action-buttons">
+                        <button id="cashOutBtn" class="btn btn-secondary" onclick="openCashOutModal()" disabled>💰 Cash Out</button>
+                        <button id="passBtn" class="btn btn-secondary" onclick="passRound()">⏩ Pass</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CASH OUT MODAL -->
+        <div id="cashOutModal" class="modal">
+            <div class="modal-content">
+                <h2>Cash Out Sets</h2>
+                <div id="cashOutContent">
+                    <!-- Dynamically populated sets -->
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button class="btn btn-primary" onclick="executeCashOut()">Confirm Cash Out</button>
+                    <button class="btn btn-secondary" onclick="closeCashOutModal()">Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- CATEGORY SELECTION MODAL -->
+        <div id="categoryModal" class="modal">
+            <div class="modal-content">
+                <h2>Select Category & Challenge</h2>
+                <p style="margin-bottom: 20px;"><strong id="firstGuesserName"></strong>, choose a category and challenge for this round:</p>
+
+                <div class="form-group">
+                    <label>Category:</label>
+                    <select id="categorySelect" onchange="updateChallengeOptions()">
+                        <option value="">-- Select Category --</option>
+                        <option value="movies">🎬 Movies</option>
+                        <option value="countries">🌍 Countries</option>
+                        <option value="companies">🏢 Companies</option>
+                        <option value="sports">🏈 Sports</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Challenge:</label>
+                    <select id="challengeSelect">
+                        <option value="">-- Select Challenge --</option>
+                    </select>
+                </div>
+
+                <div id="categoryWarning" style="display: none; background: #fff3cd; padding: 15px; border-radius: 8px; margin: 15px 0; color: #856404;">
+                    ⚠️ This category has fewer than 13 tokens remaining. Choose another category.
+                </div>
+
+                <button class="btn btn-primary" onclick="confirmCategorySelection()" style="width: 100%; margin-top: 20px;">Start Round</button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // ===== GAME STATE =====
+        const gameState = {
+            phase: 'setup',
+            round: 0,
+            maxRounds: 5,
+            challengeMode: 'cards', // 'manual' or 'cards'
+            drawnChallengeCards: [], // Array of {challenge, roundsAvailable} objects
+            currentPlayer: 0,
+            firstGuesser: 0,
+            players: [],
+            centerToken: null,
+            draftPool: [],
+            categoryPools: {
+                movies: [],
+                countries: [],
+                companies: [],
+                sports: []
+            },
+            selectedCategory: null,
+            previousCategory: null, // Track previous category for token persistence
+            playedChallenges: [], // Track challenges that have been played this game
+            retiredTokens: [],
+            passedPlayers: new Set(),
+            currentChallenge: null,
+            selectedDraftToken: null
+        };
+
+        // ===== TOKEN DATABASE =====
+        // Token data loaded from v4_token_datasets.js
+        // MOVIES_TOKENS, COUNTRIES_TOKENS, COMPANIES_TOKENS, SPORTS_TOKENS are globally available
+        // Total: 244 tokens across 4 categories
+
+        // Fallback placeholder data (will be replaced by external file)
+        const MOVIE_TOKENS_FALLBACK = [
+            { id: 'AVATAR', name: 'Avatar', tags: ['A1', 'B3', 'C1', 'D2'], stats: { boxOffice: 2923706000 } },
+            { id: 'AVENGERS_ENDGAME', name: 'Avengers: Endgame', tags: ['A2', 'B3', 'C1', 'D3'], stats: { boxOffice: 2799439100 } },
+            { id: 'AVATAR_2', name: 'Avatar: The Way of Water', tags: ['A2', 'B3', 'C1', 'D2'], stats: { boxOffice: 2320250281 } },
+            { id: 'TITANIC', name: 'Titanic', tags: ['A2', 'B2', 'C2', 'D1'], stats: { boxOffice: 2257844554 } },
+            { id: 'STAR_WARS_7', name: 'Star Wars: The Force Awakens', tags: ['A2', 'B3', 'C1', 'D3'], stats: { boxOffice: 2071310218 } },
+            { id: 'AVENGERS_INFINITY_WAR', name: 'Avengers: Infinity War', tags: ['A2', 'B3', 'C1', 'D3'], stats: { boxOffice: 2052415039 } },
+            { id: 'SPIDER_MAN_NWH', name: 'Spider-Man: No Way Home', tags: ['A2', 'B2', 'C1', 'D3'], stats: { boxOffice: 1921847111 } },
+            { id: 'JURASSIC_WORLD', name: 'Jurassic World', tags: ['A2', 'B2', 'C1', 'D3'], stats: { boxOffice: 1671537444 } },
+            { id: 'LION_KING', name: 'The Lion King', tags: ['A1', 'B2', 'C4', 'D4'], stats: { boxOffice: 1663075401 } },
+            { id: 'AVENGERS', name: 'The Avengers', tags: ['A2', 'B2', 'C1', 'D3'], stats: { boxOffice: 1520538536 } },
+            { id: 'FURIOUS_7', name: 'Furious 7', tags: ['A2', 'B2', 'C1', 'D3'], stats: { boxOffice: 1515341399 } },
+            { id: 'TOP_GUN_MAVERICK', name: 'Top Gun: Maverick', tags: ['A2', 'B2', 'C1', 'D3'], stats: { boxOffice: 1495696292 } },
+            { id: 'FROZEN_2', name: 'Frozen II', tags: ['A1', 'B2', 'C4', 'D4'], stats: { boxOffice: 1453683476 } },
+            { id: 'BARBIE', name: 'Barbie', tags: ['A2', 'B2', 'C3', 'D4'], stats: { boxOffice: 1445638421 } },
+            { id: 'AVENGERS_AGE_OF_ULTRON', name: 'Avengers: Age of Ultron', tags: ['A2', 'B3', 'C1', 'D3'], stats: { boxOffice: 1405035767 } },
+            { id: 'BLACK_PANTHER', name: 'Black Panther', tags: ['A2', 'B2', 'C1', 'D3'], stats: { boxOffice: 1347597973 } },
+            { id: 'HARRY_POTTER_7P2', name: 'Harry Potter and the Deathly Hallows Part 2', tags: ['A2', 'B2', 'C4', 'D4'], stats: { boxOffice: 1342321665 } },
+            { id: 'STAR_WARS_8', name: 'Star Wars: The Last Jedi', tags: ['A2', 'B2', 'C1', 'D3'], stats: { boxOffice: 1334407706 } },
+            { id: 'JURASSIC_WORLD_FALLEN', name: 'Jurassic World: Fallen Kingdom', tags: ['A2', 'B2', 'C1', 'D3'], stats: { boxOffice: 1310466296 } },
+            { id: 'FROZEN', name: 'Frozen', tags: ['A1', 'B2', 'C4', 'D1'], stats: { boxOffice: 1290000000 } },
+            { id: 'BEAUTY_AND_BEAST', name: 'Beauty and the Beast', tags: ['A1', 'B2', 'C4', 'D4'], stats: { boxOffice: 1266115964 } },
+            { id: 'INCREDIBLES_2', name: 'Incredibles 2', tags: ['A1', 'B2', 'C4', 'D1'], stats: { boxOffice: 1243225667 } },
+            { id: 'FATE_OF_FURIOUS', name: 'The Fate of the Furious', tags: ['A2', 'B3', 'C1', 'D3'], stats: { boxOffice: 1236005118 } },
+            { id: 'IRON_MAN_3', name: 'Iron Man 3', tags: ['A2', 'B2', 'C1', 'D3'], stats: { boxOffice: 1215439994 } },
+            { id: 'MINIONS', name: 'Minions', tags: ['A1', 'B1', 'C4', 'D4'], stats: { boxOffice: 1159457503 } },
+            { id: 'CAPTAIN_AMERICA_3', name: 'Captain America: Civil War', tags: ['A2', 'B3', 'C1', 'D3'], stats: { boxOffice: 1155046416 } },
+            { id: 'AQUAMAN', name: 'Aquaman', tags: ['A2', 'B2', 'C1', 'D3'], stats: { boxOffice: 1152028393 } },
+            { id: 'LORD_OF_RINGS_3', name: 'The Lord of the Rings: The Return of the King', tags: ['A2', 'B3', 'C4', 'D4'], stats: { boxOffice: 1146030912 } },
+            { id: 'SPIDER_MAN_FFH', name: 'Spider-Man: Far From Home', tags: ['A2', 'B2', 'C1', 'D3'], stats: { boxOffice: 1131927996 } },
+            { id: 'CAPTAIN_MARVEL', name: 'Captain Marvel', tags: ['A2', 'B2', 'C1', 'D3'], stats: { boxOffice: 1131416446 } },
+            { id: 'TRANSFORMERS_3', name: 'Transformers: Dark of the Moon', tags: ['A2', 'B3', 'C1', 'D4'], stats: { boxOffice: 1123794079 } },
+            { id: 'SKYFALL', name: 'Skyfall', tags: ['A2', 'B2', 'C1', 'D4'], stats: { boxOffice: 1108561013 } },
+            { id: 'TRANSFORMERS_4', name: 'Transformers: Age of Extinction', tags: ['A2', 'B3', 'C1', 'D4'], stats: { boxOffice: 1104054072 } },
+            { id: 'DARK_KNIGHT_RISES', name: 'The Dark Knight Rises', tags: ['A2', 'B3', 'C1', 'D3'], stats: { boxOffice: 1085276260 } },
+            { id: 'JOKER', name: 'Joker', tags: ['A3', 'B1', 'C2', 'D1'], stats: { boxOffice: 1078958629 } },
+            { id: 'STAR_WARS_9', name: 'Star Wars: The Rise of Skywalker', tags: ['A2', 'B3', 'C1', 'D3'], stats: { boxOffice: 1077022372 } },
+            { id: 'TOY_STORY_4', name: 'Toy Story 4', tags: ['A1', 'B2', 'C4', 'D3'], stats: { boxOffice: 1073064540 } },
+            { id: 'TOY_STORY_3', name: 'Toy Story 3', tags: ['A1', 'B2', 'C4', 'D3'], stats: { boxOffice: 1067316101 } },
+            { id: 'PIRATES_4', name: 'Pirates of the Caribbean: On Stranger Tides', tags: ['A2', 'B3', 'C4', 'D3'], stats: { boxOffice: 1046721266 } },
+            { id: 'DESPICABLE_ME_3', name: 'Despicable Me 3', tags: ['A1', 'B1', 'C4', 'D3'], stats: { boxOffice: 1034800131 } }
+        ];
+
+        // Tag Legend:
+        // A1 = G, A2 = PG-13, A3 = R
+        // B1 = Low Budget, B2 = Medium Budget, B3 = Ultra Budget
+        // C1 = Action, C2 = Drama, C3 = Comedy, C4 = Fantasy/Animation
+        // D1 = Original, D2 = Standalone, D3 = Franchise, D4 = Adaptation
+
+        // ===== COUNTRY TOKENS =====
+        const COUNTRY_TOKENS = [
+            { id: 'USA', name: 'United States', tags: ['A1', 'B3', 'C1', 'D3'], stats: { gdp: 25462700000000, population: 331900000 } },
+            { id: 'CHN', name: 'China', tags: ['A1', 'B3', 'C2', 'D3'], stats: { gdp: 17963000000000, population: 1412000000 } },
+            { id: 'JPN', name: 'Japan', tags: ['A1', 'B2', 'C1', 'D2'], stats: { gdp: 4231000000000, population: 125700000 } },
+            { id: 'DEU', name: 'Germany', tags: ['A2', 'B2', 'C1', 'D2'], stats: { gdp: 4073000000000, population: 83200000 } },
+            { id: 'IND', name: 'India', tags: ['A1', 'B2', 'C2', 'D3'], stats: { gdp: 3469000000000, population: 1393000000 } },
+            { id: 'GBR', name: 'United Kingdom', tags: ['A2', 'B2', 'C1', 'D2'], stats: { gdp: 3071000000000, population: 67330000 } },
+            { id: 'FRA', name: 'France', tags: ['A2', 'B2', 'C1', 'D2'], stats: { gdp: 2783000000000, population: 67750000 } },
+            { id: 'ITA', name: 'Italy', tags: ['A2', 'B2', 'C1', 'D2'], stats: { gdp: 2012000000000, population: 59110000 } },
+            { id: 'CAN', name: 'Canada', tags: ['A1', 'B2', 'C1', 'D1'], stats: { gdp: 1991000000000, population: 38250000 } },
+            { id: 'KOR', name: 'South Korea', tags: ['A1', 'B2', 'C1', 'D2'], stats: { gdp: 1811000000000, population: 51780000 } },
+            { id: 'RUS', name: 'Russia', tags: ['A2', 'B2', 'C2', 'D3'], stats: { gdp: 1778000000000, population: 144100000 } },
+            { id: 'BRA', name: 'Brazil', tags: ['A3', 'B2', 'C2', 'D3'], stats: { gdp: 1609000000000, population: 214300000 } },
+            { id: 'AUS', name: 'Australia', tags: ['A1', 'B1', 'C1', 'D1'], stats: { gdp: 1553000000000, population: 25690000 } },
+            { id: 'ESP', name: 'Spain', tags: ['A2', 'B2', 'C1', 'D2'], stats: { gdp: 1397000000000, population: 47420000 } },
+            { id: 'MEX', name: 'Mexico', tags: ['A3', 'B1', 'C2', 'D3'], stats: { gdp: 1294000000000, population: 126700000 } },
+            { id: 'IDN', name: 'Indonesia', tags: ['A3', 'B2', 'C2', 'D3'], stats: { gdp: 1186000000000, population: 273800000 } },
+            { id: 'NLD', name: 'Netherlands', tags: ['A2', 'B1', 'C1', 'D2'], stats: { gdp: 1012000000000, population: 17530000 } },
+            { id: 'SAU', name: 'Saudi Arabia', tags: ['A3', 'B1', 'C3', 'D4'], stats: { gdp: 833000000000, population: 35950000 } },
+            { id: 'TUR', name: 'Turkey', tags: ['A3', 'B2', 'C2', 'D3'], stats: { gdp: 819000000000, population: 84780000 } },
+            { id: 'CHE', name: 'Switzerland', tags: ['A2', 'B1', 'C1', 'D1'], stats: { gdp: 818000000000, population: 8703000 } },
+            { id: 'POL', name: 'Poland', tags: ['A2', 'B1', 'C1', 'D2'], stats: { gdp: 688000000000, population: 37840000 } },
+            { id: 'ARG', name: 'Argentina', tags: ['A3', 'B1', 'C2', 'D3'], stats: { gdp: 487000000000, population: 45810000 } },
+            { id: 'SWE', name: 'Sweden', tags: ['A2', 'B1', 'C1', 'D1'], stats: { gdp: 585000000000, population: 10420000 } },
+            { id: 'BEL', name: 'Belgium', tags: ['A2', 'B1', 'C1', 'D2'], stats: { gdp: 578000000000, population: 11590000 } },
+            { id: 'THA', name: 'Thailand', tags: ['A3', 'B1', 'C2', 'D3'], stats: { gdp: 505000000000, population: 71600000 } },
+            { id: 'NGA', name: 'Nigeria', tags: ['A4', 'B1', 'C3', 'D4'], stats: { gdp: 477000000000, population: 211400000 } },
+            { id: 'AUT', name: 'Austria', tags: ['A2', 'B1', 'C1', 'D2'], stats: { gdp: 476000000000, population: 8917000 } },
+            { id: 'NOR', name: 'Norway', tags: ['A2', 'B1', 'C1', 'D1'], stats: { gdp: 482000000000, population: 5465000 } },
+            { id: 'IRL', name: 'Ireland', tags: ['A2', 'B1', 'C1', 'D2'], stats: { gdp: 504000000000, population: 5033000 } },
+            { id: 'ISR', name: 'Israel', tags: ['A3', 'B1', 'C3', 'D3'], stats: { gdp: 488000000000, population: 9365000 } },
+            { id: 'SGP', name: 'Singapore', tags: ['A1', 'B1', 'C1', 'D2'], stats: { gdp: 397000000000, population: 5454000 } },
+            { id: 'PHL', name: 'Philippines', tags: ['A3', 'B1', 'C2', 'D3'], stats: { gdp: 404000000000, population: 111000000 } },
+            { id: 'MYS', name: 'Malaysia', tags: ['A3', 'B1', 'C2', 'D3'], stats: { gdp: 373000000000, population: 32780000 } },
+            { id: 'ZAF', name: 'South Africa', tags: ['A4', 'B1', 'C3', 'D4'], stats: { gdp: 419000000000, population: 60040000 } },
+            { id: 'DNK', name: 'Denmark', tags: ['A2', 'B1', 'C1', 'D1'], stats: { gdp: 391000000000, population: 5857000 } },
+            { id: 'VNM', name: 'Vietnam', tags: ['A3', 'B1', 'C2', 'D4'], stats: { gdp: 366000000000, population: 98170000 } },
+            { id: 'EGY', name: 'Egypt', tags: ['A4', 'B1', 'C3', 'D4'], stats: { gdp: 378000000000, population: 104300000 } },
+            { id: 'PAK', name: 'Pakistan', tags: ['A4', 'B1', 'C3', 'D4'], stats: { gdp_total: 347000000000, population_total: 225200000 } },
+            { id: 'CHL', name: 'Chile', tags: ['A3', 'B1', 'C2', 'D3'], stats: { gdp_total: 301000000000, population_total: 19210000 } },
+            { id: 'FIN', name: 'Finland', tags: ['A2', 'B1', 'C1', 'D1'], stats: { gdp_total: 297000000000, population_total: 5541000 } }
+        ];
+
+        // Rename fallback for consistency
+        const COUNTRY_TOKENS_FALLBACK = COUNTRY_TOKENS;
+
+        // Country Tag Legend:
+        // A1 = Developed (High HDI), A2 = Europe, A3 = Emerging, A4 = Developing
+        // B1 = Small Economy, B2 = Large Economy, B3 = Superpower Economy
+        // C1 = Democratic, C2 = Mixed, C3 = Authoritarian, C4 = Other
+        // D1 = Low Density, D2 = Medium Density, D3 = High Density, D4 = Very High Density
+
+        // ===== CHALLENGES ===== (120 total from data.js)
+        const CHALLENGES = [
+            // Countries (32 challenges)
+            { category: 'countries', stat: 'gdp_total', name: 'GDP Total', direction: 'higher' },
+            { category: 'countries', stat: 'gdp_growth_pct', name: 'GDP Growth %', direction: 'higher' },
+            { category: 'countries', stat: 'unemployment_rate', name: 'Unemployment Rate', direction: 'lower' },
+            { category: 'countries', stat: 'health_expenditure_pct_gdp', name: 'Health Spending % GDP', direction: 'higher' },
+            { category: 'countries', stat: 'healthy_diet_cost_ppp', name: 'Healthy Diet Cost', direction: 'lower' },
+            { category: 'countries', stat: 'patent_applications', name: 'Patent Applications', direction: 'higher' },
+            { category: 'countries', stat: 'female_labor_participation_pct', name: 'Female Labor %', direction: 'higher' },
+            { category: 'countries', stat: 'population_total', name: 'Population Total', direction: 'higher' },
+            { category: 'countries', stat: 'population_0_14_pct', name: 'Population 0-14 %', direction: 'higher' },
+            { category: 'countries', stat: 'population_65_plus_pct', name: 'Population 65+ %', direction: 'higher' },
+            { category: 'countries', stat: 'birth_rate', name: 'Birth Rate', direction: 'higher' },
+            { category: 'countries', stat: 'life_expectancy', name: 'Life Expectancy', direction: 'higher' },
+            { category: 'countries', stat: 'rural_population_pct', name: 'Rural Population %', direction: 'higher' },
+            { category: 'countries', stat: 'broadband_per_100', name: 'Broadband per 100', direction: 'higher' },
+            { category: 'countries', stat: 'mobile_per_100', name: 'Mobile per 100', direction: 'higher' },
+            { category: 'countries', stat: 'secure_servers_per_1m', name: 'Secure Servers per 1M', direction: 'higher' },
+            { category: 'countries', stat: 'forest_area_pct', name: 'Forest Area %', direction: 'higher' },
+            { category: 'countries', stat: 'renewable_energy_pct', name: 'Renewable Energy %', direction: 'higher' },
+            { category: 'countries', stat: 'electricity_coal_pct', name: 'Electricity Coal %', direction: 'lower' },
+            { category: 'countries', stat: 'electricity_oil_pct', name: 'Electricity Oil %', direction: 'lower' },
+            { category: 'countries', stat: 'pollution_index', name: 'Pollution Index', direction: 'lower' },
+            { category: 'countries', stat: 'irrigated_land_km2', name: 'Irrigated Land km²', direction: 'higher' },
+            { category: 'countries', stat: 'soybean_production_tonnes', name: 'Soybean Production', direction: 'higher' },
+            { category: 'countries', stat: 'airports', name: 'Airports', direction: 'higher' },
+            { category: 'countries', stat: 'unesco_total_sites', name: 'UNESCO Total Sites', direction: 'higher' },
+            { category: 'countries', stat: 'unesco_cultural_sites', name: 'UNESCO Cultural Sites', direction: 'higher' },
+            { category: 'countries', stat: 'unesco_natural_sites', name: 'UNESCO Natural Sites', direction: 'higher' },
+            { category: 'countries', stat: 'unesco_mixed_sites', name: 'UNESCO Mixed Sites', direction: 'higher' },
+            { category: 'countries', stat: 'tertiary_enrollment_pct', name: 'Tertiary Enrollment %', direction: 'higher' },
+            { category: 'countries', stat: 'nobel_laureates', name: 'Nobel Laureates', direction: 'higher' },
+            { category: 'countries', stat: 'crime_index', name: 'Crime Index', direction: 'lower' },
+            { category: 'countries', stat: 'life_evaluation', name: 'Life Evaluation', direction: 'higher' },
+
+            // Movies (33 challenges)
+            { category: 'movies', stat: 'box_office_gross', name: 'Box Office Gross', direction: 'higher' },
+            { category: 'movies', stat: 'production_budget', name: 'Production Budget', direction: 'higher' },
+            { category: 'movies', stat: 'runtime_minutes', name: 'Runtime', direction: 'higher' },
+            { category: 'movies', stat: 'imdb_rating', name: 'IMDb Rating', direction: 'higher' },
+            { category: 'movies', stat: 'rotten_tomatoes', name: 'Rotten Tomatoes', direction: 'higher' },
+            { category: 'movies', stat: 'metacritic_score', name: 'Metacritic Score', direction: 'higher' },
+            { category: 'movies', stat: 'release_year', name: 'Release Year', direction: 'higher' },
+            { category: 'movies', stat: 'opening_weekend', name: 'Opening Weekend', direction: 'higher' },
+            { category: 'movies', stat: 'international_gross', name: 'International Gross', direction: 'higher' },
+            { category: 'movies', stat: 'oscar_nominations', name: 'Oscar Nominations', direction: 'higher' },
+            { category: 'movies', stat: 'oscar_wins', name: 'Oscar Wins', direction: 'higher' },
+            { category: 'movies', stat: 'screen_count', name: 'Screen Count', direction: 'higher' },
+            { category: 'movies', stat: 'marketing_budget', name: 'Marketing Budget', direction: 'higher' },
+            { category: 'movies', stat: 'profit_margin', name: 'Profit Margin', direction: 'higher' },
+            { category: 'movies', stat: 'weeks_in_theaters', name: 'Weeks in Theaters', direction: 'higher' },
+            { category: 'movies', stat: 'dvd_sales', name: 'DVD Sales', direction: 'higher' },
+            { category: 'movies', stat: 'streaming_views', name: 'Streaming Views', direction: 'higher' },
+            { category: 'movies', stat: 'social_media_mentions', name: 'Social Media Mentions', direction: 'higher' },
+            { category: 'movies', stat: 'franchise_value', name: 'Franchise Value', direction: 'higher' },
+            { category: 'movies', stat: 'director_previous_hits', name: 'Director Previous Hits', direction: 'higher' },
+            { category: 'movies', stat: 'star_power_rating', name: 'Star Power Rating', direction: 'higher' },
+            { category: 'movies', stat: 'production_days', name: 'Production Days', direction: 'higher' },
+            { category: 'movies', stat: 'cgi_budget', name: 'CGI Budget', direction: 'higher' },
+            { category: 'movies', stat: 'soundtrack_sales', name: 'Soundtrack Sales', direction: 'higher' },
+            { category: 'movies', stat: 'merchandising_revenue', name: 'Merchandising Revenue', direction: 'higher' },
+            { category: 'movies', stat: 'sequel_count', name: 'Sequel Count', direction: 'higher' },
+            { category: 'movies', stat: 'remake_count', name: 'Remake Count', direction: 'higher' },
+            { category: 'movies', stat: 'cultural_impact_score', name: 'Cultural Impact', direction: 'higher' },
+            { category: 'movies', stat: 'box_office_multiple', name: 'Box Office Multiple', direction: 'higher' },
+            { category: 'movies', stat: 'award_ceremonies_count', name: 'Award Ceremonies', direction: 'higher' },
+            { category: 'movies', stat: 'home_video_revenue', name: 'Home Video Revenue', direction: 'higher' },
+            { category: 'movies', stat: 'international_markets', name: 'International Markets', direction: 'higher' },
+            { category: 'movies', stat: 'fan_rating_average', name: 'Fan Rating Average', direction: 'higher' },
+
+            // Sports (22 challenges)
+            { category: 'sports', stat: 'championship_count', name: 'Championships', direction: 'higher' },
+            { category: 'sports', stat: 'all_time_wins', name: 'All-Time Wins', direction: 'higher' },
+            { category: 'sports', stat: 'playoff_appearances', name: 'Playoff Appearances', direction: 'higher' },
+            { category: 'sports', stat: 'winning_percentage', name: 'Winning Percentage', direction: 'higher' },
+            { category: 'sports', stat: 'division_titles', name: 'Division Titles', direction: 'higher' },
+            { category: 'sports', stat: 'year_founded', name: 'Year Founded', direction: 'lower' },
+            { category: 'sports', stat: 'mvp_awards', name: 'MVP Awards', direction: 'higher' },
+            { category: 'sports', stat: 'retired_numbers', name: 'Retired Numbers', direction: 'higher' },
+            { category: 'sports', stat: 'longest_winning_streak', name: 'Longest Win Streak', direction: 'higher' },
+            { category: 'sports', stat: 'team_value', name: 'Team Value', direction: 'higher' },
+            { category: 'sports', stat: 'average_home_attendance', name: 'Average Attendance', direction: 'higher' },
+            { category: 'sports', stat: 'metro_population', name: 'Metro Population', direction: 'higher' },
+            { category: 'sports', stat: 'franchise_name_changes', name: 'Name Changes', direction: 'higher' },
+            { category: 'sports', stat: 'franchise_miles_moved', name: 'Miles Moved', direction: 'higher' },
+            { category: 'sports', stat: 'average_ticket_price', name: 'Ticket Price', direction: 'higher' },
+            { category: 'sports', stat: 'beer_price', name: 'Beer Price', direction: 'higher' },
+            { category: 'sports', stat: 'parking_price', name: 'Parking Price', direction: 'higher' },
+            { category: 'sports', stat: 'night_out_cost', name: 'Night Out Cost', direction: 'higher' },
+            { category: 'sports', stat: 'draft_picks_first_overall', name: 'First Overall Picks', direction: 'higher' },
+            { category: 'sports', stat: 'championship_drought', name: 'Championship Drought', direction: 'higher' },
+            { category: 'sports', stat: 'city_championship_total', name: 'City Championships', direction: 'higher' },
+            { category: 'sports', stat: 'championship_losses', name: 'Championship Losses', direction: 'higher' },
+
+            // Companies (33 challenges)
+            { category: 'companies', stat: 'market_cap', name: 'Market Cap', direction: 'higher' },
+            { category: 'companies', stat: 'annual_revenue', name: 'Annual Revenue', direction: 'higher' },
+            { category: 'companies', stat: 'employee_count', name: 'Employee Count', direction: 'higher' },
+            { category: 'companies', stat: 'profit_margin', name: 'Profit Margin', direction: 'higher' },
+            { category: 'companies', stat: 'rd_spending', name: 'R&D Spending', direction: 'higher' },
+            { category: 'companies', stat: 'brand_value', name: 'Brand Value', direction: 'higher' },
+            { category: 'companies', stat: 'customer_satisfaction', name: 'Customer Satisfaction', direction: 'higher' },
+            { category: 'companies', stat: 'environmental_score', name: 'Environmental Score', direction: 'higher' },
+            { category: 'companies', stat: 'global_offices', name: 'Global Offices', direction: 'higher' },
+            { category: 'companies', stat: 'patents_held', name: 'Patents Held', direction: 'higher' },
+            { category: 'companies', stat: 'ceo_approval', name: 'CEO Approval', direction: 'higher' },
+            { category: 'companies', stat: 'diversity_index', name: 'Diversity Index', direction: 'higher' },
+            { category: 'companies', stat: 'innovation_score', name: 'Innovation Score', direction: 'higher' },
+            { category: 'companies', stat: 'social_impact', name: 'Social Impact', direction: 'higher' },
+            { category: 'companies', stat: 'work_life_balance', name: 'Work-Life Balance', direction: 'higher' },
+            { category: 'companies', stat: 'stock_performance', name: 'Stock Performance', direction: 'higher' },
+            { category: 'companies', stat: 'advertising_spend', name: 'Advertising Spend', direction: 'higher' },
+            { category: 'companies', stat: 'data_centers', name: 'Data Centers', direction: 'higher' },
+            { category: 'companies', stat: 'charitable_giving', name: 'Charitable Giving', direction: 'higher' },
+            { category: 'companies', stat: 'digital_transformation', name: 'Digital Transformation', direction: 'higher' },
+            { category: 'companies', stat: 'revenue_growth', name: 'Revenue Growth', direction: 'higher' },
+            { category: 'companies', stat: 'market_share', name: 'Market Share', direction: 'higher' },
+            { category: 'companies', stat: 'employee_satisfaction', name: 'Employee Satisfaction', direction: 'higher' },
+            { category: 'companies', stat: 'cybersecurity_score', name: 'Cybersecurity Score', direction: 'higher' },
+            { category: 'companies', stat: 'supply_chain_efficiency', name: 'Supply Chain Efficiency', direction: 'higher' },
+            { category: 'companies', stat: 'international_presence', name: 'International Presence', direction: 'higher' },
+            { category: 'companies', stat: 'startup_acquisitions', name: 'Startup Acquisitions', direction: 'higher' },
+            { category: 'companies', stat: 'cloud_infrastructure', name: 'Cloud Infrastructure', direction: 'higher' },
+            { category: 'companies', stat: 'ai_investment', name: 'AI Investment', direction: 'higher' },
+            { category: 'companies', stat: 'debt_to_equity', name: 'Debt-to-Equity', direction: 'lower' },
+            { category: 'companies', stat: 'cash_reserves', name: 'Cash Reserves', direction: 'higher' },
+            { category: 'companies', stat: 'sustainability_initiatives', name: 'Sustainability', direction: 'higher' },
+            { category: 'companies', stat: 'regulatory_compliance', name: 'Regulatory Compliance', direction: 'higher' }
+        ];
+
+        // ===== HELPER FUNCTIONS =====
+
+        // Get players as array (works for both local array and online object)
+        function getPlayersArray() {
+            if (GameModeManager.isLocal()) {
+                return gameState.players; // Already an array
+            } else {
+                // Online mode: convert object to array using window.playerIds for correct order
+                const playerIds = window.playerIds || Object.keys(gameState.players || {});
+                return playerIds.map(id => gameState.players[id]);
+            }
+        }
+
+        // Get player by index (works for both modes)
+        function getPlayerByIndex(index) {
+            if (GameModeManager.isLocal()) {
+                return gameState.players[index];
+            } else {
+                const playerIds = window.playerIds || Object.keys(gameState.players || {});
+                const playerId = playerIds[index];
+                return gameState.players[playerId];
+            }
+        }
+
+        // Get player count (works for both modes)
+        function getPlayerCount() {
+            if (GameModeManager.isLocal()) {
+                return gameState.players?.length || 0;
+            } else {
+                return Object.keys(gameState.players || {}).length;
+            }
+        }
+
+        // ===== INITIALIZATION =====
+        function initializeGame() {
+            // Check if external dataset loaded
+            if (typeof MOVIES_TOKENS === 'undefined') {
+                console.warn('⚠️ External dataset not loaded! Using fallback data.');
+            } else {
+                console.log('✅ External dataset loaded successfully!');
+            }
+
+            // Load all token pools from external dataset
+            // Check if external data loaded, fallback to placeholder if not
+            const moviesData = typeof MOVIES_TOKENS !== 'undefined' ? MOVIES_TOKENS : MOVIE_TOKENS_FALLBACK;
+            const countriesData = typeof COUNTRIES_TOKENS !== 'undefined' ? COUNTRIES_TOKENS : COUNTRY_TOKENS_FALLBACK;
+            const companiesData = typeof COMPANIES_TOKENS !== 'undefined' ? COMPANIES_TOKENS : [];
+            const sportsData = typeof SPORTS_TOKENS !== 'undefined' ? SPORTS_TOKENS : [];
+
+            gameState.categoryPools.movies = [...moviesData];
+            gameState.categoryPools.countries = [...countriesData];
+            gameState.categoryPools.companies = [...companiesData];
+            gameState.categoryPools.sports = [...sportsData];
+
+            console.log(`✅ Loaded ${gameState.categoryPools.movies.length} movies`);
+            console.log(`✅ Loaded ${gameState.categoryPools.countries.length} countries`);
+            console.log(`✅ Loaded ${gameState.categoryPools.companies.length} companies`);
+            console.log(`✅ Loaded ${gameState.categoryPools.sports.length} sports teams`);
+
+            // Set up player input fields
+            updatePlayerInputs();
+
+            // Check URL parameters for auto-mode selection
+            const urlParams = new URLSearchParams(window.location.search);
+            const modeParam = urlParams.get('mode');
+            if (modeParam === 'online') {
+                // Auto-select online mode when opened from button
+                selectGameMode('online');
+            }
+        }
+
+        function updatePlayerInputs() {
+            const numPlayers = parseInt(document.getElementById('numPlayers').value);
+            const container = document.getElementById('playerInputs');
+            container.innerHTML = '';
+
+            const defaultNames = ['Ben', 'Tabi', 'Daniel', 'Player 4', 'Player 5', 'Player 6'];
+
+            for (let i = 0; i < numPlayers; i++) {
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.placeholder = `Player ${i + 1} Name`;
+                input.id = `player${i}Name`;
+                input.value = defaultNames[i] || `Player ${i + 1}`;
+                container.appendChild(input);
+            }
+        }
+
+        // ===== MODE SELECTION & ONLINE SETUP =====
+
+        function selectGameMode(mode) {
+            GameModeManager.setMode(mode);
+
+            // Update mode indicator
+            const indicator = document.getElementById('modeIndicator');
+            const modeText = document.getElementById('modeText');
+
+            if (mode === 'local') {
+                indicator.style.background = '#667eea';
+                modeText.textContent = '🏠 Local Game';
+                indicator.style.display = 'block';
+                // Show local setup screen
+                showScreen('setupScreen');
+            } else if (mode === 'online') {
+                indicator.style.background = '#4caf50';
+                modeText.textContent = '🌐 Online Game';
+                indicator.style.display = 'block';
+                // Initialize Firebase and show online setup
+                initializeOnlineMode();
+            }
+        }
+
+        async function initializeOnlineMode() {
+            const success = await GameModeManager.initializeOnlineMode();
+
+            if (success) {
+                // Initialize room manager
+                RoomManager.initialize(GameModeManager.database);
+                showScreen('onlineSetupScreen');
+            } else {
+                alert('Failed to connect to Firebase. Please check your internet connection.');
+                showScreen('modeSelectionScreen');
+            }
+        }
+
+        function backToModeSelection() {
+            showScreen('modeSelectionScreen');
+        }
+
+        async function createNewGame() {
+            let playerName = document.getElementById('playerName').value.trim();
+
+            // Default to "Player 1" if no name entered
+            if (!playerName) {
+                playerName = 'Player 1';
+            }
+
+            try {
+                const roomCode = await RoomManager.createRoom(playerName);
+                localStorage.setItem('currentRoomCode', roomCode);
+
+                // Setup presence tracking
+                RoomManager.setupPresence(roomCode);
+
+                // Show lobby
+                initializeLobby(roomCode, true);
+            } catch (error) {
+                console.error('Error creating room:', error);
+                alert('Failed to create game: ' + error.message);
+            }
+        }
+
+        async function joinExistingGame() {
+            const roomCode = document.getElementById('roomCode').value.trim().toUpperCase();
+
+            if (!roomCode || roomCode.length !== 6) {
+                alert('Please enter a valid 6-character room code');
+                return;
+            }
+
+            // Get player count in room to assign default name
+            const database = GameModeManager.database;
+            const playersSnapshot = await database.ref('games/' + roomCode + '/players').once('value');
+            const players = playersSnapshot.val() || {};
+            const playerCount = Object.keys(players).length;
+
+            let playerName = document.getElementById('playerName').value.trim();
+            if (!playerName) {
+                playerName = `Player ${playerCount + 1}`;
+            }
+
+            try {
+                await RoomManager.joinRoom(roomCode, playerName);
+                localStorage.setItem('currentRoomCode', roomCode);
+
+                // Setup presence tracking
+                RoomManager.setupPresence(roomCode);
+
+                // Show lobby
+                initializeLobby(roomCode, false);
+            } catch (error) {
+                console.error('Error joining room:', error);
+                alert('Failed to join game: ' + error.message);
+            }
+        }
+
+        function copyRoomCode(code) {
+            navigator.clipboard.writeText(code).then(() => {
+                showNotification(`Room code ${code} copied to clipboard!`, 'success');
+            }).catch(err => {
+                console.error('Failed to copy:', err);
+                showNotification('Failed to copy code', 'error');
+            });
+        }
+
+        function initializeLobby(roomCode, isHost) {
+            // Display room code with copy button
+            const lobbyCodeEl = document.getElementById('lobbyRoomCode');
+            lobbyCodeEl.innerHTML = `Room: <strong>${roomCode}</strong> <button onclick="copyRoomCode('${roomCode}')" style="margin-left: 10px; padding: 5px 10px; cursor: pointer;">📋 Copy</button>`;
+
+            // Show/hide host controls
+            const hostControls = document.getElementById('hostControls');
+            const lobbyStatus = document.getElementById('lobbyStatus');
+
+            if (isHost) {
+                hostControls.style.display = 'block';
+                lobbyStatus.style.display = 'none';
+            } else {
+                hostControls.style.display = 'none';
+                lobbyStatus.style.display = 'block';
+            }
+
+            // Listen for player updates
+            const database = GameModeManager.database;
+            const playersRef = database.ref('games/' + roomCode + '/players');
+
+            playersRef.on('value', (snapshot) => {
+                const players = snapshot.val() || {};
+                updateLobbyPlayersList(players);
+            });
+
+            // Listen for game start
+            const gameStateRef = database.ref('games/' + roomCode + '/gameState');
+            gameStateRef.on('value', (snapshot) => {
+                const gameStateData = snapshot.val();
+                console.log('📡 Lobby listener - phase:', gameStateData?.phase);
+                if (gameStateData && (gameStateData.phase === 'challenge' || gameStateData.phase === 'playing')) {
+                    // Game has started, transition to game screen
+                    console.log('🚀 Game started! Setting up sync...');
+                    syncGameStateFromFirebase();
+                }
+            });
+
+            showScreen('lobbyScreen');
+        }
+
+        function updateLobbyPlayersList(players) {
+            const listContainer = document.getElementById('lobbyPlayersList');
+            listContainer.innerHTML = '';
+
+            const playerIds = Object.keys(players);
+
+            console.log('📋 Updating lobby with', playerIds.length, 'players:', playerIds);
+
+            playerIds.forEach((playerId, index) => {
+                const player = players[playerId];
+
+                console.log('  Player', index + 1, ':', {
+                    id: playerId,
+                    name: player.name,
+                    isHost: player.isHost,
+                    connected: player.connected
+                });
+
+                const playerDiv = document.createElement('div');
+                playerDiv.style.cssText = `
+                    padding: 12px;
+                    margin: 8px 0;
+                    background: white;
+                    border-radius: 8px;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                `;
+
+                const nameSpan = document.createElement('span');
+                nameSpan.textContent = player.name || 'Unknown Player';
+                nameSpan.style.fontWeight = 'bold';
+
+                const rightDiv = document.createElement('div');
+                rightDiv.style.display = 'flex';
+                rightDiv.style.alignItems = 'center';
+                rightDiv.style.gap = '10px';
+
+                const statusSpan = document.createElement('span');
+                if (player.isHost) {
+                    statusSpan.textContent = '👑 Host';
+                    statusSpan.style.color = '#764ba2';
+                }
+
+                const connectedIndicator = document.createElement('span');
+                connectedIndicator.textContent = player.connected ? '🟢' : '🔴';
+
+                rightDiv.appendChild(statusSpan);
+                rightDiv.appendChild(connectedIndicator);
+
+                playerDiv.appendChild(nameSpan);
+                playerDiv.appendChild(rightDiv);
+
+                listContainer.appendChild(playerDiv);
+            });
+
+            // Update start button state (only for host)
+            const startGameBtn = document.getElementById('startGameBtn');
+            const startGameHint = document.getElementById('startGameHint');
+
+            if (startGameBtn) {
+                console.log('🎮 Button state check: playerCount =', playerIds.length);
+                if (playerIds.length >= 2) {
+                    startGameBtn.disabled = false;
+                    if (startGameHint) startGameHint.style.display = 'none';
+                    console.log('✅ Button enabled');
+                } else {
+                    startGameBtn.disabled = true;
+                    if (startGameHint) startGameHint.style.display = 'block';
+                    console.log('❌ Button disabled');
+                }
+            }
+        }
+
+        async function startOnlineGame() {
+            const roomCode = localStorage.getItem('currentRoomCode');
+            const maxRounds = parseInt(document.getElementById('maxRounds').value);
+
+            const database = GameModeManager.database;
+            const gameRef = database.ref('games/' + roomCode);
+            const gameStateRef = gameRef.child('gameState');
+            const playersRef = gameRef.child('players');
+
+            // Initialize player game data
+            const playersSnapshot = await playersRef.once('value');
+            const players = playersSnapshot.val() || {};
+
+            for (const playerId in players) {
+                await playersRef.child(playerId).update({
+                    score: 0,
+                    hand: [],
+                    thisRound: [],
+                    correctGuesses: 0,
+                    wrongGuesses: 0
+                });
+            }
+
+            // Update game state to start
+            await gameStateRef.update({
+                phase: 'challenge',
+                round: 1,
+                maxRounds: maxRounds,
+                currentPlayer: 0,
+                firstGuesser: 0,
+                challengeMode: 'cards', // V4 uses card-based challenges
+                playedChallenges: [],
+                drawnChallengeCards: [],
+                draftPool: [],
+                centerToken: null,
+                passedPlayers: [],
+                selectedDraftToken: null,
+                selectedCategory: null,
+                previousCategory: null
+            });
+
+            console.log('✅ Game started with', maxRounds, 'rounds');
+        }
+
+        async function leaveLobby() {
+            const roomCode = localStorage.getItem('currentRoomCode');
+
+            if (roomCode) {
+                await RoomManager.leaveRoom(roomCode);
+                localStorage.removeItem('currentRoomCode');
+            }
+
+            showScreen('onlineSetupScreen');
+        }
+
+        let hasStartedGame = false;
+        let lastSyncedRound = 0;
+
+        function syncGameStateFromFirebase() {
+            const roomCode = localStorage.getItem('currentRoomCode');
+            const database = GameModeManager.database;
+
+            // Listen to entire game state
+            const gameRef = database.ref('games/' + roomCode);
+
+            gameRef.on('value', (snapshot) => {
+                const gameData = snapshot.val();
+                if (gameData) {
+                    // Convert Firebase structure to local gameState
+                    const fbPlayers = gameData.players || {};
+                    const fbGameState = gameData.gameState || {};
+
+                    // Store player IDs for reference (order matters for currentPlayer index)
+                    window.playerIds = Object.keys(fbPlayers);
+
+                    // Keep players as object keyed by Firebase UID (NOT array)
+                    gameState.players = fbPlayers;
+
+                    // Copy game state fields (preserve categoryPools - they're not in Firebase)
+                    const categoryPools = gameState.categoryPools; // Save pools
+
+                    // Debug: Log what Firebase is sending
+                    if (fbGameState.centerToken) {
+                        console.log('📥 Firebase sync - centerToken:', fbGameState.centerToken?.name);
+                        console.log('📥 Firebase sync - draftPool size:', fbGameState.draftPool?.length || Object.keys(fbGameState.draftPool || {}).length);
+                    }
+
+                    Object.assign(gameState, fbGameState);
+                    gameState.categoryPools = categoryPools; // Restore pools
+                    gameState.players = fbPlayers; // Restore players object (don't let fbGameState overwrite)
+
+                    // Convert Firebase objects back to arrays
+                    if (gameState.draftPool && !Array.isArray(gameState.draftPool)) {
+                        gameState.draftPool = Object.values(gameState.draftPool);
+                    }
+                    if (gameState.drawnChallengeCards && !Array.isArray(gameState.drawnChallengeCards)) {
+                        gameState.drawnChallengeCards = Object.values(gameState.drawnChallengeCards);
+                    }
+                    if (gameState.passedPlayers && !Array.isArray(gameState.passedPlayers)) {
+                        gameState.passedPlayers = new Set(Object.values(gameState.passedPlayers));
+                    } else if (Array.isArray(gameState.passedPlayers)) {
+                        gameState.passedPlayers = new Set(gameState.passedPlayers);
+                    }
+
+                    // drawnChallengeCards should come from Firebase in online mode
+
+                    console.log('🔄 Synced state:', {
+                        phase: gameState.phase,
+                        round: gameState.round,
+                        currentPlayer: gameState.currentPlayer,
+                        playerCount: getPlayerCount(),
+                        hasStartedGame: hasStartedGame,
+                        challengeMode: gameState.challengeMode
+                    });
+
+                    // Update UI based on phase
+                    if (gameState.phase === 'challenge' && !hasStartedGame) {
+                        console.log('🎮 Starting game for first time!');
+                        hasStartedGame = true;
+                        // Show game screen and start round
+                        showScreen('gameScreen');
+                        console.log('📺 Showing game screen');
+                        startNewRound();
+                        console.log('🎲 Started new round');
+                    } else if (hasStartedGame) {
+                        // Continuous UI updates during gameplay
+                        console.log('♻️ Continuous UI update');
+                        updateGameUI();
+
+                        // If in challenge phase and cards just arrived, show modal (only if challenge not yet selected)
+                        const modal = document.getElementById('categoryModal');
+                        if (gameState.phase === 'challenge' && gameState.challengeMode === 'cards') {
+                            if (gameState.drawnChallengeCards && gameState.drawnChallengeCards.length > 0 &&
+                                !gameState.currentChallenge) {
+                                // Cards are ready, no challenge selected yet - show modal
+                                if (modal && !modal.classList.contains('active')) {
+                                    showCategorySelectionModal();
+                                }
+                            } else if (gameState.currentChallenge) {
+                                // Challenge has been selected - close modal
+                                if (modal && modal.classList.contains('active')) {
+                                    modal.classList.remove('active');
+                                }
+                            }
+                        }
+                    } else {
+                        console.log('⏸️ Waiting... phase:', gameState.phase, 'hasStarted:', hasStartedGame);
+                    }
+                }
+            });
+        }
+
+        // Note: updateGameUI is defined later in the file (line ~2023)
+
+        // ===== GAME FLOW =====
+        function startGame() {
+            const numPlayers = parseInt(document.getElementById('numPlayers').value);
+            const firstPlayerIndex = parseInt(document.getElementById('firstPlayer').value);
+            const maxRounds = parseInt(document.getElementById('numRounds').value);
+            const challengeMode = document.getElementById('challengeMode').value;
+
+            // Initialize players
+            gameState.players = [];
+            for (let i = 0; i < numPlayers; i++) {
+                const nameInput = document.getElementById(`player${i}Name`);
+                gameState.players.push({
+                    name: nameInput.value || `Player ${i + 1}`,
+                    score: 0,
+                    hand: [],
+                    thisRound: [],
+                    correctGuesses: 0,
+                    cashOuts: 0
+                });
+            }
+
+            gameState.currentPlayer = firstPlayerIndex;
+            gameState.firstGuesser = firstPlayerIndex;
+            gameState.round = 1;
+            gameState.maxRounds = maxRounds;
+            gameState.challengeMode = challengeMode;
+            gameState.phase = 'challenge';
+
+            // Switch to game screen
+            showScreen('gameScreen');
+
+            // Start first round
+            startNewRound();
+        }
+
+        function startNewRound() {
+            // Open category selection modal for first guesser
+            const firstGuesserName = getPlayerByIndex(gameState.firstGuesser)?.name || 'Player';
+            const firstGuesserElem = document.getElementById('firstGuesserName');
+            if (firstGuesserElem) {
+                firstGuesserElem.textContent = firstGuesserName;
+            }
+
+            // In online mode, only the first guesser draws cards (others receive via sync)
+            // Use window.playerIds which has actual Firebase user IDs, not gameState.players indices
+            const playerIds = window.playerIds || Object.keys(gameState.players || {});
+            const firstGuesserId = playerIds[gameState.firstGuesser];
+            const isFirstGuesser = GameModeManager.isLocal() || (firstGuesserId === window.currentUserId);
+
+            // If in 'cards' mode, manage challenge cards
+            if (gameState.challengeMode === 'cards' && isFirstGuesser) {
+                const categories = ['movies', 'countries', 'companies', 'sports'];
+
+                // First round: draw all cards fresh
+                if (gameState.round === 1) {
+                    gameState.drawnChallengeCards = [];
+                    categories.forEach(category => {
+                        // Filter out challenges that have been played
+                        const categoryChallenges = CHALLENGES.filter(c =>
+                            c.category === category &&
+                            !gameState.playedChallenges.some(played => played.name === c.name && played.category === c.category)
+                        );
+                        const randomIndex = Math.floor(Math.random() * categoryChallenges.length);
+                        gameState.drawnChallengeCards.push({
+                            challenge: categoryChallenges[randomIndex],
+                            roundsAvailable: 1
+                        });
+                    });
+                } else {
+                    // Subsequent rounds: replace only the selected category's card
+                    const selectedCategory = gameState.selectedCategory;
+
+                    gameState.drawnChallengeCards = gameState.drawnChallengeCards.map(cardData => {
+                        if (cardData.challenge.category === selectedCategory) {
+                            // Replace this card with a new one from the same category, excluding played challenges
+                            const categoryChallenges = CHALLENGES.filter(c =>
+                                c.category === selectedCategory &&
+                                !gameState.playedChallenges.some(played => played.name === c.name && played.category === c.category)
+                            );
+
+                            if (categoryChallenges.length === 0) {
+                                // No more challenges available in this category
+                                showNotification(`No more ${selectedCategory} challenges available!`, 'warning');
+                                return cardData; // Keep the old card
+                            }
+
+                            const randomIndex = Math.floor(Math.random() * categoryChallenges.length);
+                            return {
+                                challenge: categoryChallenges[randomIndex],
+                                roundsAvailable: 1
+                            };
+                        } else {
+                            // Keep this card, increment rounds available
+                            return {
+                                challenge: cardData.challenge,
+                                roundsAvailable: cardData.roundsAvailable + 1
+                            };
+                        }
+                    });
+                }
+            }
+
+            // Reset selections (only needed for manual mode, but safe to try)
+            const categorySelect = document.getElementById('categorySelect');
+            const challengeSelect = document.getElementById('challengeSelect');
+            const categoryWarning = document.getElementById('categoryWarning');
+
+            if (categorySelect) categorySelect.value = '';
+            if (challengeSelect) challengeSelect.innerHTML = '<option value="">-- Select Challenge --</option>';
+            if (categoryWarning) categoryWarning.style.display = 'none';
+
+            // Sync drawn challenge cards to Firebase if online mode (only if first guesser)
+            if (GameModeManager.isOnline() && isFirstGuesser) {
+                GameModeManager.updateGameState({
+                    drawnChallengeCards: gameState.drawnChallengeCards
+                }).then(() => {
+                    console.log('✅ Synced challenge cards to Firebase');
+                }).catch(err => {
+                    console.error('❌ Failed to sync cards:', err);
+                });
+            }
+
+            // Show modal for everyone (placed outside the drawing if block but inside startNewRound)
+            // If cards were drawn by first guesser, they're now synced
+            // If not first guesser, wait for sync to populate cards
+            if (gameState.challengeMode === 'cards') {
+                showCategorySelectionModal();
+            }
+        }
+
+        function showCategorySelectionModal() {
+            const modal = document.getElementById('categoryModal');
+            const modalContent = modal.querySelector('.modal-content');
+
+            if (gameState.challengeMode === 'cards') {
+                // Safety check: wait for cards to be populated
+                if (!gameState.drawnChallengeCards || gameState.drawnChallengeCards.length === 0) {
+                    console.log('⏳ Waiting for challenge cards to sync...');
+                    // Modal will be shown when cards sync triggers updateGameUI
+                    return;
+                }
+
+                // Get first guesser name safely
+                const firstGuesser = gameState.players?.[gameState.firstGuesser];
+                const firstGuesserName = firstGuesser?.name || 'Player';
+
+                // Show challenge cards UI
+                modalContent.innerHTML = `
+                    <h2>Select Challenge Card</h2>
+                    <p style="margin-bottom: 20px;"><strong id="firstGuesserName">${firstGuesserName}</strong>, choose one challenge card:</p>
+                    <div id="challengeCardsContainer" style="display: grid; gap: 15px;">
+                        ${gameState.drawnChallengeCards.map((cardData, idx) => {
+                            const challenge = cardData.challenge;
+                            const roundsAvailable = cardData.roundsAvailable;
+                            const categoryEmoji = {
+                                'movies': '🎬',
+                                'countries': '🌍',
+                                'companies': '🏢',
+                                'sports': '🏈'
+                            };
+                            const available = getAvailableTokensForCategory(challenge.category);
+
+                            // Check if there are existing tokens in draft pool from this category
+                            const hasExistingDraft = (gameState.previousCategory === challenge.category && gameState.draftPool.length > 0);
+                            const existingTokenCount = hasExistingDraft ? (1 + gameState.draftPool.length) : 0; // 1 center + draft pool
+                            const tokensNeeded = hasExistingDraft ? Math.max(0, 13 - existingTokenCount) : 13;
+
+                            const canSelect = available >= tokensNeeded;
+                            const isNew = roundsAvailable === 1;
+
+                            return `
+                                <div class="challenge-card ${!canSelect ? 'disabled' : ''}"
+                                     onclick="${canSelect ? `selectChallengeCard(${idx})` : ''}"
+                                     style="background: ${canSelect ? 'white' : '#f5f5f5'};
+                                            padding: 20px;
+                                            border-radius: 12px;
+                                            border: 3px solid ${canSelect ? '#764ba2' : '#ddd'};
+                                            cursor: ${canSelect ? 'pointer' : 'not-allowed'};
+                                            transition: all 0.2s;
+                                            position: relative;">
+                                    ${!isNew ? `
+                                        <div style="position: absolute;
+                                                    top: 10px;
+                                                    right: 10px;
+                                                    background: #ff9800;
+                                                    color: white;
+                                                    padding: 4px 10px;
+                                                    border-radius: 12px;
+                                                    font-size: 11px;
+                                                    font-weight: bold;">
+                                            Round ${roundsAvailable}
+                                        </div>
+                                    ` : ''}
+                                    <div style="font-size: 32px; margin-bottom: 10px;">${categoryEmoji[challenge.category]}</div>
+                                    <div style="font-weight: bold; font-size: 18px; color: #764ba2; margin-bottom: 5px;">
+                                        ${challenge.category.charAt(0).toUpperCase() + challenge.category.slice(1)}
+                                    </div>
+                                    <div style="font-size: 16px; color: #333; margin-bottom: 5px;">${challenge.name}</div>
+                                    <div style="font-size: 12px; color: ${canSelect ? '#666' : '#999'};">
+                                        ${hasExistingDraft ?
+                                            `🔄 ${existingTokenCount} in draft pool<br>${available} in pool · Need ${tokensNeeded} more` :
+                                            canSelect ? `${available} tokens available` : '⚠️ Not enough tokens'
+                                        }
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                `;
+            } else {
+                // Show manual selection UI (existing)
+                modalContent.innerHTML = `
+                    <h2>Select Category & Challenge</h2>
+                    <p style="margin-bottom: 20px;"><strong id="firstGuesserName">${getPlayerByIndex(gameState.firstGuesser).name}</strong>, choose a category and challenge for this round:</p>
+
+                    <div class="form-group">
+                        <label>Category:</label>
+                        <select id="categorySelect" onchange="updateChallengeOptions()">
+                            <option value="">-- Select Category --</option>
+                            <option value="movies">🎬 Movies</option>
+                            <option value="countries">🌍 Countries</option>
+                            <option value="companies">🏢 Companies</option>
+                            <option value="sports">🏈 Sports</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Challenge:</label>
+                        <select id="challengeSelect">
+                            <option value="">-- Select Challenge --</option>
+                        </select>
+                        <p id="categoryWarning" style="color: #dc3545; margin-top: 5px; display: none;">
+                            ⚠️ Not enough tokens in this category. Please choose another.
+                        </p>
+                    </div>
+
+                    <button class="btn btn-primary" onclick="confirmCategorySelection()" style="width: 100%; margin-top: 20px;">Start Round</button>
+                `;
+            }
+
+            modal.classList.add('active');
+        }
+
+        async function selectChallengeCard(cardIndex) {
+            // Turn validation for online mode - check if this player is the first guesser
+            if (GameModeManager.isOnline()) {
+                const playerIds = window.playerIds || [];
+                const firstGuesserId = playerIds[gameState.firstGuesser];
+                const isFirstGuesser = firstGuesserId === window.currentUserId;
+
+                if (!isFirstGuesser) {
+                    showNotification("Wait for your turn! Only the first guesser can select the challenge card.", 'warning');
+                    return;
+                }
+            }
+
+            const cardData = gameState.drawnChallengeCards[cardIndex];
+            const challenge = cardData.challenge;
+            gameState.currentChallenge = challenge;
+
+            // Mark this challenge as played
+            gameState.playedChallenges.push({
+                name: challenge.name,
+                category: challenge.category
+            });
+
+            // Check if this is the same category as previous round
+            const sameCategoryAsPrevious = (challenge.category === gameState.previousCategory);
+
+            // Update category tracking
+            gameState.selectedCategory = challenge.category;
+
+            // Close modal
+            document.getElementById('categoryModal').classList.remove('active');
+
+            // Handle token drawing based on category persistence
+            let carryoverMessage = '';
+
+            if (sameCategoryAsPrevious && gameState.draftPool.length > 0) {
+                // Same category - keep existing tokens and only draw what's needed
+                const existingTokenCount = 1 + gameState.draftPool.length; // 1 center + draft pool
+                const tokensNeeded = 13 - existingTokenCount;
+
+                if (tokensNeeded > 0) {
+                    const newTokens = drawTokens(tokensNeeded, challenge.category);
+
+                    if (newTokens.length < tokensNeeded && gameState.categoryPools[challenge.category].length === 0) {
+                        showNotification(`Only ${existingTokenCount} tokens available (${existingTokenCount - 1} carried over). Continuing with reduced pool.`, 'warning');
+                    }
+
+                    // Add new tokens to draft pool
+                    gameState.draftPool.push(...newTokens);
+
+                    carryoverMessage = `🔄 ${existingTokenCount} tokens carried over + ${newTokens.length} new tokens drawn`;
+                    showNotification(`Round ${gameState.round} started! Category: ${challenge.category.toUpperCase()} - ${challenge.name}\n${existingTokenCount} tokens carried over from previous round, ${newTokens.length} new tokens added.`, 'success');
+                } else {
+                    // We already have enough tokens from previous round
+                    carryoverMessage = `🔄 All ${existingTokenCount} tokens carried over from previous round`;
+                    showNotification(`Round ${gameState.round} started! Category: ${challenge.category.toUpperCase()} - ${challenge.name}\nAll ${existingTokenCount} tokens carried over from previous round.`, 'success');
+                }
+
+                // Center token stays the same, draft pool was updated above
+            } else {
+                // Different category or first time - draw fresh 13 tokens
+                const tokens = drawTokens(13, challenge.category);
+
+                if (tokens.length < 13) {
+                    showNotification(`Only ${tokens.length} tokens available in this category! Continuing with reduced pool.`, 'warning');
+                }
+
+                // 1 goes to center
+                gameState.centerToken = tokens[0];
+
+                // 12 go to draft pool (or less if not enough tokens)
+                gameState.draftPool = tokens.slice(1);
+
+                carryoverMessage = ''; // No carryover for new category
+                showNotification(`Round ${gameState.round} started! Category: ${challenge.category.toUpperCase()} - ${challenge.name}`, 'success');
+            }
+
+            // Update carryover info display
+            const carryoverInfo = document.getElementById('tokenCarryoverInfo');
+            if (carryoverMessage) {
+                carryoverInfo.textContent = carryoverMessage;
+                carryoverInfo.style.display = 'block';
+            } else {
+                carryoverInfo.style.display = 'none';
+            }
+
+            // Update previous category for next round
+            gameState.previousCategory = challenge.category;
+
+            // Reset round state
+            gameState.passedPlayers = new Set();
+            // Don't clear lastToPass - it persists across rounds until someone else earns it
+            gameState.currentPlayer = gameState.firstGuesser;
+            gameState.selectedDraftToken = null;
+
+            // Sync to Firebase if online mode
+            if (GameModeManager.isOnline()) {
+                await GameModeManager.updateGameState({
+                    currentChallenge: challenge,
+                    playedChallenges: gameState.playedChallenges,
+                    selectedCategory: gameState.selectedCategory,
+                    previousCategory: gameState.previousCategory,
+                    centerToken: gameState.centerToken,
+                    draftPool: gameState.draftPool,
+                    passedPlayers: Array.from(gameState.passedPlayers),
+                    currentPlayer: gameState.currentPlayer,
+                    selectedDraftToken: null
+                });
+                console.log('✅ Synced challenge selection to Firebase');
+            }
+
+            // Update UI
+            updateGameUI();
+        }
+
+        function updateChallengeOptions() {
+            const category = document.getElementById('categorySelect').value;
+            const challengeSelect = document.getElementById('challengeSelect');
+            const warning = document.getElementById('categoryWarning');
+
+            if (!category) {
+                challengeSelect.innerHTML = '<option value="">-- Select Challenge --</option>';
+                warning.style.display = 'none';
+                return;
+            }
+
+            // Check if category has enough tokens
+            const availableTokens = getAvailableTokensForCategory(category);
+            if (availableTokens < 13) {
+                warning.style.display = 'block';
+                challengeSelect.innerHTML = '<option value="">-- Select Challenge --</option>';
+                challengeSelect.disabled = true;
+                return;
+            }
+
+            warning.style.display = 'none';
+            challengeSelect.disabled = false;
+
+            // Populate challenges for this category
+            const categoryChallenges = CHALLENGES.filter(c => c.category === category);
+            challengeSelect.innerHTML = '<option value="">-- Select Challenge --</option>';
+
+            categoryChallenges.forEach((challenge, idx) => {
+                const option = document.createElement('option');
+                option.value = idx;
+                option.textContent = challenge.name;
+                option.dataset.category = challenge.category;
+                option.dataset.stat = challenge.stat;
+                challengeSelect.appendChild(option);
+            });
+        }
+
+        function getAvailableTokensForCategory(category) {
+            const pool = gameState.categoryPools?.[category];
+            if (!pool) return 0;
+
+            // Calculate tokens in use by players and in play
+            let tokensInUse = 0;
+
+            // Count tokens in player hands and thisRound
+            if (Array.isArray(gameState.players)) {
+                getPlayersArray().forEach(player => {
+                    if (player && Array.isArray(player.hand)) {
+                        player.hand.forEach(token => {
+                            if (token && token.id && pool.some(t => t.id === token.id)) {
+                                // This is a placeholder check - in reality, we need better tracking
+                            }
+                        });
+                    }
+                });
+            }
+
+            // For now, just return pool length (will improve token tracking later)
+            return pool.length;
+        }
+
+        function confirmCategorySelection() {
+            const category = document.getElementById('categorySelect').value;
+            const challengeIdx = document.getElementById('challengeSelect').value;
+
+            if (!category || challengeIdx === '') {
+                showNotification('Please select both category and challenge!', 'warning');
+                return;
+            }
+
+            // Get selected challenge
+            const categoryChallenges = CHALLENGES.filter(c => c.category === category);
+            gameState.currentChallenge = categoryChallenges[parseInt(challengeIdx)];
+            gameState.selectedCategory = category;
+
+            // Close modal
+            document.getElementById('categoryModal').classList.remove('active');
+
+            // Draw 13 tokens from selected category
+            const tokens = drawTokens(13, category);
+
+            if (tokens.length < 13) {
+                showNotification('Not enough tokens in this category!', 'error');
+                return;
+            }
+
+            // 1 goes to center
+            gameState.centerToken = tokens[0];
+
+            // 12 go to draft pool
+            gameState.draftPool = tokens.slice(1);
+
+            // Reset round state
+            gameState.passedPlayers = new Set();
+            // Don't clear lastToPass - it persists across rounds until someone else earns it
+            gameState.currentPlayer = gameState.firstGuesser;
+            gameState.selectedDraftToken = null;
+
+            // Update UI
+            updateGameUI();
+
+            showNotification(`Round ${gameState.round} started! Category: ${category.toUpperCase()}`, 'success');
+        }
+
+        function drawTokens(count, category) {
+            const pool = gameState.categoryPools[category];
+            const drawn = [];
+
+            for (let i = 0; i < count && pool.length > 0; i++) {
+                const randomIndex = Math.floor(Math.random() * pool.length);
+                drawn.push(pool.splice(randomIndex, 1)[0]);
+            }
+
+            return drawn;
+        }
+
+        // ===== UI UPDATES =====
+        function updateGameUI() {
+            // Update round number
+            const roundNumber = document.getElementById('roundNumber');
+            if (roundNumber) {
+                roundNumber.textContent = `${gameState.round} / ${gameState.maxRounds}`;
+            }
+
+            // Update challenge info (only if challenge selected)
+            if (gameState.currentChallenge) {
+                const challengeInfo = document.getElementById('challengeInfo');
+                if (challengeInfo) challengeInfo.style.display = 'block';
+
+                const challengeName = document.getElementById('challengeName');
+                if (challengeName) challengeName.textContent = gameState.currentChallenge.name;
+
+                const statName = document.getElementById('statName');
+                if (statName) statName.textContent = 'Higher or Lower';
+            }
+
+            // Update center token (only if exists)
+            if (gameState.centerToken) {
+                const centerTokenArea = document.getElementById('centerTokenArea');
+                if (centerTokenArea) centerTokenArea.style.display = 'block';
+                renderCenterToken();
+            }
+
+            // Update draft pool
+            renderDraftPool();
+
+            // Update players
+            renderPlayers();
+
+            // Update action buttons
+            updateActionButtons();
+        }
+
+        function renderCenterToken() {
+            const token = gameState.centerToken;
+            const container = document.getElementById('centerToken');
+            const statField = gameState.currentChallenge.stat;
+            const statValue = token.stats[statField];
+
+            container.innerHTML = `
+                <div class="token-name">${token.name}</div>
+                <div class="token-value">${formatNumber(statValue)}</div>
+                <div class="token-tags">
+                    ${token.tags.map(tag => `<span class="token-tag">${tag}</span>`).join('')}
+                </div>
+            `;
+        }
+
+        function renderDraftPool() {
+            const container = document.getElementById('draftPool');
+            if (!container) return;
+
+            const pool = gameState.draftPool;
+            const poolCount = document.getElementById('poolCount');
+            if (poolCount) {
+                poolCount.textContent = pool.length;
+            }
+
+            // Safety check - don't render if no challenge selected yet
+            if (!gameState.currentChallenge) {
+                container.innerHTML = '';
+                return;
+            }
+
+            const statField = gameState.currentChallenge.stat;
+
+            container.innerHTML = pool.map(token => {
+                const statValue = token.stats[statField];
+                return `
+                    <div class="token ${gameState.selectedDraftToken?.id === token.id ? 'selected' : ''}"
+                         onclick="selectDraftToken('${token.id}')">
+                        <div class="token-name">${token.name}</div>
+                        <div class="token-value">${formatNumber(statValue)}</div>
+                        <div class="token-tags">
+                            ${token.tags.map(tag => `<span class="token-tag">${tag}</span>`).join('')}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderPlayers() {
+            const container = document.getElementById('playersList');
+
+            const playersArray = getPlayersArray();
+            container.innerHTML = playersArray.map((player, index) => {
+                const isCurrent = index === gameState.currentPlayer;
+                const isFirstGuesser = index === gameState.firstGuesser;
+                const hasPassed = gameState.passedPlayers.has(index);
+                const isLastStanding = index === gameState.lastToPass;
+
+                // Calculate tag counts for this player
+                const tagCounts = getPlayerTagCounts(player);
+                const tagDisplay = Object.entries(tagCounts)
+                    .filter(([tag, count]) => count > 0)
+                    .sort(([tagA], [tagB]) => tagA.localeCompare(tagB))
+                    .map(([tag, count]) => {
+                        const hasSet = count >= 2;
+                        const color = hasSet ? '#28a745' : '#666';
+                        const weight = hasSet ? 'bold' : 'normal';
+                        return `<span style="color: ${color}; font-weight: ${weight};">${tag}:${count}</span>`;
+                    })
+                    .join(' ');
+
+                return `
+                    <div class="player-info ${isCurrent ? 'current-player' : ''}">
+                        <div class="player-name">
+                            ${player.name}
+                            ${isFirstGuesser ? '<span class="first-guesser-marker">1st</span>' : ''}
+                            ${isLastStanding ? '<span class="last-standing-marker" title="Last Standing">🏆</span>' : ''}
+                            ${hasPassed ? '<span style="color: #999;"> (Out)</span>' : ''}
+                        </div>
+                        <div class="player-score">${player.score || 0} pts</div>
+                        <div class="player-stats">
+                            Hand: ${player.hand?.length || 0} | This Round: ${player.thisRound?.length || 0}
+                        </div>
+                        ${tagDisplay ? `<div class="player-tags" style="font-size: 11px; margin-top: 5px; line-height: 1.4;">${tagDisplay}</div>` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function getPlayerTagCounts(player) {
+            // Firebase stores arrays as objects - convert to arrays
+            const hand = Array.isArray(player.hand) ? player.hand : Object.values(player.hand || {});
+            const thisRound = Array.isArray(player.thisRound) ? player.thisRound : Object.values(player.thisRound || {});
+            const allTokens = [...hand, ...thisRound];
+            const tagCounts = {};
+
+            allTokens.forEach(token => {
+                if (token && token.tags) {
+                    const tags = Array.isArray(token.tags) ? token.tags : Object.values(token.tags || {});
+                    tags.forEach(tag => {
+                        tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+                    });
+                }
+            });
+
+            return tagCounts;
+        }
+
+        function updateActionButtons() {
+            const player = getPlayerByIndex(gameState.currentPlayer);
+
+            // Cash out button enabled if player has sets
+            document.getElementById('cashOutBtn').disabled = !canCashOut(player);
+
+            // Pass button always enabled
+            document.getElementById('passBtn').disabled = false;
+        }
+
+        // ===== DRAFT & GUESS =====
+        function selectDraftToken(tokenId) {
+            const token = gameState.draftPool.find(t => t.id === tokenId);
+            if (!token) return;
+
+            gameState.selectedDraftToken = token;
+            renderDraftPool();
+
+            // Show guess area
+            document.getElementById('guessArea').classList.add('active');
+            document.getElementById('draftedTokenName').textContent = token.name;
+            document.getElementById('centerTokenName').textContent = gameState.centerToken.name;
+        }
+
+        function makeGuess(direction) {
+            console.log('🎯 makeGuess called:', direction, 'selectedToken:', gameState.selectedDraftToken?.name);
+
+            // Turn validation for online mode
+            if (GameModeManager.isOnline() && !GameModeManager.isMyTurn()) {
+                showNotification("Wait for your turn!", 'warning');
+                return;
+            }
+
+            if (!gameState.selectedDraftToken) {
+                showNotification("Please select a token from the draft pool first!", 'warning');
+                return;
+            }
+
+            const drafted = gameState.selectedDraftToken;
+            const center = gameState.centerToken;
+            const stat = gameState.currentChallenge.stat;
+
+            const draftedValue = drafted.stats[stat];
+            const centerValue = center.stats[stat];
+
+            let isCorrect = false;
+            if (direction === 'higher') {
+                isCorrect = draftedValue > centerValue;
+            } else {
+                isCorrect = draftedValue < centerValue;
+            }
+
+            if (isCorrect) {
+                handleCorrectGuess(drafted, center);
+            } else {
+                handleWrongGuess(drafted);
+            }
+        }
+
+        function handleCorrectGuess(drafted, center) {
+            const player = GameModeManager.getCurrentPlayer();
+
+            // Award 1 point
+            player.score += 1;
+            player.correctGuesses += 1;
+
+            // Collect center token to "this round" pile (Firebase stores arrays as objects)
+            if (!Array.isArray(player.thisRound)) {
+                player.thisRound = Object.values(player.thisRound || {});
+            }
+            player.thisRound.push(center);
+
+            // Calculate new state
+            const newCenterToken = drafted;
+            const newDraftPool = gameState.draftPool.filter(t => t.id !== drafted.id);
+
+            // Show success animation on center token
+            const centerEl = document.getElementById('centerToken');
+            centerEl.classList.add('animate-correct-flash');
+            setTimeout(() => centerEl.classList.remove('animate-correct-flash'), 600);
+
+            // Floating points animation
+            showFloatingPoints('+1', centerEl);
+
+            // Show success notification
+            showNotification(`✅ Correct! ${player.name} earns 1 point!`, 'success');
+
+            // Clear selection
+            const newSelectedDraftToken = null;
+
+            // Check if all other players are out (round should end)
+            const playerCount = GameModeManager.isLocal() ? getPlayerCount() : Object.keys(gameState.players).length;
+            const allOthersPassed = gameState.passedPlayers.size === playerCount - 1;
+
+            // Handle state update based on mode
+            if (GameModeManager.isOnline()) {
+                // ONLINE MODE: Only send to Firebase, DO NOT update local state
+                // The Firebase sync listener will update our local state
+                const playerIds = Object.keys(gameState.players);
+                const currentPlayerId = playerIds[gameState.currentPlayer];
+
+                console.log('🔄 Syncing correct guess to Firebase:');
+                console.log('  New center token:', newCenterToken.name);
+                console.log('  Draft pool size:', newDraftPool.length);
+
+                GameModeManager.updatePlayer(currentPlayerId, {
+                    score: player.score,
+                    correctGuesses: player.correctGuesses,
+                    thisRound: player.thisRound
+                });
+
+                GameModeManager.updateGameState({
+                    centerToken: newCenterToken,
+                    draftPool: newDraftPool,
+                    selectedDraftToken: newSelectedDraftToken
+                });
+
+                console.log('✅ Firebase update sent - waiting for sync');
+            } else {
+                // LOCAL MODE: Update state directly
+                gameState.centerToken = newCenterToken;
+                gameState.draftPool = newDraftPool;
+                gameState.selectedDraftToken = newSelectedDraftToken;
+                document.getElementById('guessArea').classList.remove('active');
+            }
+
+            // Update UI and advance turn after animation
+            setTimeout(() => {
+                updateGameUI();
+                if (allOthersPassed) {
+                    // This player is the last one standing - they should pass to end round
+                    console.log('🏆 Only this player remains active');
+                    advanceTurn();
+                } else {
+                    advanceTurn();
+                }
+            }, 400);
+        }
+
+        function handleWrongGuess(drafted) {
+            const player = GameModeManager.getCurrentPlayer();
+
+            // Show failure animation on center token
+            const centerEl = document.getElementById('centerToken');
+            centerEl.classList.add('animate-wrong-flash', 'animate-shake');
+            setTimeout(() => {
+                centerEl.classList.remove('animate-wrong-flash', 'animate-shake');
+            }, 800);
+
+            // Calculate new state
+            const thisRoundArray = Array.isArray(player.thisRound) ? player.thisRound : Object.values(player.thisRound || {});
+            const newDraftPool = [...gameState.draftPool, ...thisRoundArray];
+            player.thisRound = [];
+
+            // Player becomes first guesser next round (if no one else is first yet)
+            const becomesFirstGuesser = gameState.passedPlayers.size === 0;
+            const newFirstGuesser = becomesFirstGuesser ? gameState.currentPlayer : gameState.firstGuesser;
+
+            // Mark player as OUT for this round (they can't draft again)
+            const newPassedPlayers = new Set(gameState.passedPlayers);
+            newPassedPlayers.add(gameState.currentPlayer);
+
+            console.log('❌ Wrong guess by', player.name);
+            const playerCount = GameModeManager.isLocal() ? getPlayerCount() : Object.keys(gameState.players).length;
+            console.log('   Passed players now:', newPassedPlayers.size, '/', playerCount);
+
+            // Check if this leaves only 1 player standing
+            const nonPassedCount = playerCount - newPassedPlayers.size;
+            const isLastStanding = nonPassedCount === 1;
+
+            console.log('   Non-passed count:', nonPassedCount);
+            console.log('   Is last standing?', isLastStanding);
+
+            // Award last standing trophy when only 1 player remains active
+            let newLastToPass = gameState.lastToPass || 0;
+            if (isLastStanding) {
+                if (GameModeManager.isLocal()) {
+                    const lastStandingIndex = getPlayersArray().findIndex((p, idx) => !newPassedPlayers.has(idx));
+                    if (lastStandingIndex !== -1) {
+                        newLastToPass = lastStandingIndex;
+                        console.log('   🏆 Last standing trophy awarded to:', gameState.players[lastStandingIndex].name);
+                    }
+                } else {
+                    const playerIds = Object.keys(gameState.players);
+                    const lastStandingIndex = playerIds.findIndex((id, idx) => !newPassedPlayers.has(idx));
+                    if (lastStandingIndex !== -1) {
+                        newLastToPass = lastStandingIndex;
+                        console.log('   🏆 Last standing trophy awarded to:', gameState.players[playerIds[lastStandingIndex]].name);
+                    }
+                }
+            }
+
+            // Show failure notification
+            const nextRoundMsg = becomesFirstGuesser ? ' Will go first next round!' : '';
+            showNotification(`❌ Wrong! ${player.name} loses tokens but keeps ${player.score} points. OUT for this round.${nextRoundMsg}`, 'error');
+
+            // Handle state update based on mode
+            if (GameModeManager.isOnline()) {
+                // ONLINE MODE: Only send to Firebase, DO NOT update local state
+                const playerIds = Object.keys(gameState.players);
+                const currentPlayerId = playerIds[gameState.currentPlayer];
+
+                // Only send defined values to Firebase
+                const playerUpdates = {
+                    thisRound: player.thisRound || []
+                };
+                if (player.wrongGuesses !== undefined) playerUpdates.wrongGuesses = player.wrongGuesses;
+                if (player.hand !== undefined) playerUpdates.hand = player.hand;
+
+                GameModeManager.updatePlayer(currentPlayerId, playerUpdates);
+                GameModeManager.updateGameState({
+                    draftPool: newDraftPool,
+                    passedPlayers: Array.from(newPassedPlayers),
+                    firstGuesser: newFirstGuesser,
+                    lastToPass: newLastToPass,
+                    selectedDraftToken: null
+                });
+
+                console.log('✅ Firebase update sent - waiting for sync');
+            } else {
+                // LOCAL MODE: Update state directly
+                gameState.draftPool = newDraftPool;
+                gameState.passedPlayers = newPassedPlayers;
+                gameState.firstGuesser = newFirstGuesser;
+                gameState.lastToPass = newLastToPass;
+                gameState.selectedDraftToken = null;
+                document.getElementById('guessArea').classList.remove('active');
+            }
+
+            // Check if all players are now out (round should end)
+            const allPassed = newPassedPlayers.size === playerCount;
+            console.log('   All passed?', allPassed, `(${newPassedPlayers.size} === ${getPlayerCount()})`);
+
+            // Update UI and advance turn after animation
+            setTimeout(() => {
+                console.log('⏰ Wrong guess timeout fired');
+                updateGameUI();
+                if (allPassed) {
+                    console.log('🔚 Last player failed - ending round immediately');
+                    endRound();
+                } else {
+                    console.log('➡️ Not all passed, calling advanceTurn');
+                    advanceTurn();
+                }
+            }, 600);
+        }
+
+        function advanceTurn() {
+            console.log('🔄 advanceTurn called. Passed players:', gameState.passedPlayers.size, '/', getPlayerCount());
+
+            // Check if all passed FIRST (before trying to advance)
+            if (gameState.passedPlayers.size === getPlayerCount()) {
+                console.log('✅ All players passed. Ending round...');
+                endRound();
+                return;
+            }
+
+            // Move to next non-passed player
+            let attempts = 0;
+            do {
+                gameState.currentPlayer = (gameState.currentPlayer + 1) % getPlayerCount();
+                attempts++;
+
+                // Safety check: prevent infinite loop
+                if (attempts > getPlayerCount()) {
+                    console.error('❌ INFINITE LOOP DETECTED in advanceTurn!');
+                    endRound();
+                    return;
+                }
+            } while (gameState.passedPlayers.has(gameState.currentPlayer));
+
+            console.log('👤 Next player:', getPlayerByIndex(gameState.currentPlayer).name);
+
+            // Sync to Firebase if online mode
+            if (GameModeManager.isOnline()) {
+                GameModeManager.updateGameState({
+                    currentPlayer: gameState.currentPlayer
+                });
+            }
+
+            // Update UI
+            updateGameUI();
+        }
+
+        // ===== CASH OUT =====
+        function canCashOut(player) {
+            // Firebase stores arrays as objects - convert to arrays
+            const hand = Array.isArray(player.hand) ? player.hand : Object.values(player.hand || {});
+            const thisRound = Array.isArray(player.thisRound) ? player.thisRound : Object.values(player.thisRound || {});
+            const allTokens = [...hand, ...thisRound];
+            const tagCounts = {};
+
+            allTokens.forEach(token => {
+                if (token && token.tags) {
+                    const tags = Array.isArray(token.tags) ? token.tags : Object.values(token.tags || {});
+                    tags.forEach(tag => {
+                        tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+                    });
+                }
+            });
+
+            // Check if any tag has 2+ tokens
+            return Object.values(tagCounts).some(count => count >= 2);
+        }
+
+        function openCashOutModal() {
+            const player = getPlayerByIndex(gameState.currentPlayer);
+            const allTokens = [...player.hand, ...player.thisRound];
+
+            if (allTokens.length === 0) {
+                showNotification('No tokens to cash out!', 'warning');
+                return;
+            }
+
+            // Build tag groups
+            const tagGroups = {};
+            allTokens.forEach(token => {
+                token.tags.forEach(tag => {
+                    if (!tagGroups[tag]) {
+                        tagGroups[tag] = [];
+                    }
+                    tagGroups[tag].push(token);
+                });
+            });
+
+            // Filter to only tags with 2+ tokens
+            const validSets = Object.entries(tagGroups).filter(([tag, tokens]) => tokens.length >= 2);
+
+            if (validSets.length === 0) {
+                showNotification('No sets available to cash out!', 'warning');
+                return;
+            }
+
+            // Build modal content
+            const modal = document.getElementById('cashOutModal');
+            const content = document.getElementById('cashOutContent');
+            content.innerHTML = '<p style="margin-bottom: 15px; font-weight: bold;">💰 Cash Out Rules: 2 tokens = 2pts | 3 tokens = 5pts | 4 tokens = 8pts (max)</p><p style="margin-bottom: 15px;">Click to select 2, 3, or 4 tokens sharing the same tag:</p>';
+
+            validSets.forEach(([tag, tokens]) => {
+                const setDiv = document.createElement('div');
+                setDiv.className = 'cash-out-set';
+                setDiv.style.cssText = 'background: #f8f8f8; padding: 15px; border-radius: 10px; margin-bottom: 15px;';
+
+                const setHeader = document.createElement('div');
+                setHeader.style.cssText = 'font-weight: bold; margin-bottom: 10px; color: #764ba2;';
+
+                const maxSelect = Math.min(tokens.length, 4);
+                const selectRange = tokens.length === 2 ? '2' : `2-${maxSelect}`;
+                setHeader.textContent = `Tag ${tag} — You have ${tokens.length} token${tokens.length > 1 ? 's' : ''} (select ${selectRange})`;
+                setDiv.appendChild(setHeader);
+
+                const tokenList = document.createElement('div');
+                tokenList.style.cssText = 'display: flex; gap: 8px; flex-wrap: wrap;';
+
+                tokens.forEach((token, idx) => {
+                    const tokenBtn = document.createElement('button');
+                    tokenBtn.className = 'cash-token-btn';
+                    tokenBtn.textContent = token.name;
+                    tokenBtn.style.cssText = 'padding: 8px 12px; border: 2px solid #ddd; background: white; border-radius: 8px; cursor: pointer; font-size: 13px;';
+                    tokenBtn.dataset.tokenId = token.id;
+                    tokenBtn.dataset.tag = tag;
+
+                    tokenBtn.onclick = function() {
+                        // Toggle selection
+                        this.classList.toggle('selected');
+                        if (this.classList.contains('selected')) {
+                            this.style.background = 'linear-gradient(135deg, #667eea, #764ba2)';
+                            this.style.color = 'white';
+                            this.style.borderColor = '#764ba2';
+                        } else {
+                            this.style.background = 'white';
+                            this.style.color = '#333';
+                            this.style.borderColor = '#ddd';
+                        }
+                    };
+
+                    tokenList.appendChild(tokenBtn);
+                });
+
+                setDiv.appendChild(tokenList);
+                content.appendChild(setDiv);
+            });
+
+            modal.classList.add('active');
+        }
+
+        function closeCashOutModal() {
+            document.getElementById('cashOutModal').classList.remove('active');
+        }
+
+        function executeCashOut() {
+            const player = getPlayerByIndex(gameState.currentPlayer);
+
+            // Get selected tokens
+            const selectedBtns = document.querySelectorAll('.cash-token-btn.selected');
+
+            if (selectedBtns.length < 2) {
+                showNotification('Must select at least 2 tokens!', 'warning');
+                return;
+            }
+
+            if (selectedBtns.length > 4) {
+                showNotification('Can only cash out up to 4 tokens (max points)!', 'warning');
+                return;
+            }
+
+            // Verify all selected tokens share a common tag
+            const selectedTokenIds = Array.from(selectedBtns).map(btn => btn.dataset.tokenId);
+            const tags = Array.from(selectedBtns).map(btn => btn.dataset.tag);
+
+            // Check if all selected tokens share at least ONE common tag
+            const allTokens = [...player.hand, ...player.thisRound];
+            const selectedTokenObjects = selectedTokenIds.map(id => allTokens.find(t => t.id === id));
+
+            // Find common tags across all selected tokens
+            const commonTags = selectedTokenObjects[0].tags.filter(tag =>
+                selectedTokenObjects.every(token => token.tags.includes(tag))
+            );
+
+            if (commonTags.length === 0) {
+                showNotification('All selected tokens must share at least one common tag!', 'warning');
+                return;
+            }
+
+            // Use the first common tag for scoring
+            const selectedTag = commonTags[0];
+
+            // Verify count (2, 3, or 4 only)
+            const count = selectedTokenIds.length;
+            if (count < 2 || count > 4) {
+                showNotification('Must cash out 2, 3, or 4 tokens!', 'warning');
+                return;
+            }
+
+            // Calculate points
+            let points = 0;
+            if (count === 2) points = 2;
+            else if (count === 3) points = 5;
+            else if (count === 4) points = 8;
+
+            // Find and remove tokens from player's hand/thisRound
+            const tokensToRemove = [];
+            selectedTokenIds.forEach(tokenId => {
+                const fromHand = player.hand.findIndex(t => t.id === tokenId);
+                if (fromHand !== -1) {
+                    tokensToRemove.push(player.hand.splice(fromHand, 1)[0]);
+                } else {
+                    const fromThisRound = player.thisRound.findIndex(t => t.id === tokenId);
+                    if (fromThisRound !== -1) {
+                        tokensToRemove.push(player.thisRound.splice(fromThisRound, 1)[0]);
+                    }
+                }
+            });
+
+            // Add to retired tokens
+            gameState.retiredTokens.push(...tokensToRemove);
+
+            // Award points
+            player.score += points;
+            player.cashOuts++;
+
+            // Close modal first
+            closeCashOutModal();
+
+            // Show success animation on player panel
+            const playerPanels = document.querySelectorAll('.player-info');
+            if (playerPanels[gameState.currentPlayer]) {
+                const panel = playerPanels[gameState.currentPlayer];
+                panel.classList.add('animate-celebrate');
+                setTimeout(() => panel.classList.remove('animate-celebrate'), 800);
+
+                // Floating points animation
+                showFloatingPoints(`+${points}`, panel);
+            }
+
+            // Show success notification
+            showNotification(`💰 ${player.name} cashed out ${count} tokens for ${points} points!`, 'success');
+
+            // Update UI and end turn after animation
+            setTimeout(() => {
+                updateGameUI();
+                advanceTurn();
+            }, 400);
+        }
+
+        // ===== PASS =====
+        function passRound() {
+            const player = getPlayerByIndex(gameState.currentPlayer);
+
+            // Move "this round" to hand
+            player.hand.push(...player.thisRound);
+            player.thisRound = [];
+
+            // Mark player as passed
+            gameState.passedPlayers.add(gameState.currentPlayer);
+
+            // Check if this player is now the last one standing (only 1 non-passed player remains)
+            const nonPassedCount = getPlayerCount() - gameState.passedPlayers.size;
+            const isLastStanding = nonPassedCount === 1;
+
+            // First to pass becomes first guesser next round
+            if (gameState.passedPlayers.size === 1) {
+                gameState.firstGuesser = gameState.currentPlayer;
+                showNotification(`${player.name} passed FIRST. Tokens moved to hand (safe). Will go first next round!`, 'info');
+            } else {
+                showNotification(`${player.name} passed. Tokens moved to hand (safe).`, 'info');
+            }
+
+            // Award last standing trophy when only 1 player remains active
+            if (isLastStanding) {
+                // Find the last remaining player (not passed)
+                const lastStandingIndex = getPlayersArray().findIndex((p, idx) => !gameState.passedPlayers.has(idx));
+                if (lastStandingIndex !== -1) {
+                    gameState.lastToPass = lastStandingIndex;
+                    updateGameUI(); // Update to show trophy immediately
+                }
+            }
+
+            // Advance turn
+            advanceTurn();
+        }
+
+        function endRound() {
+            // Move all "thisRound" tokens to player hands (make them safe)
+            getPlayersArray().forEach(player => {
+                player.hand.push(...player.thisRound);
+                player.thisRound = [];
+            });
+
+            // Award "last standing" bonus (+1 point to last person to pass)
+            if (gameState.lastToPass !== undefined) {
+                getPlayerByIndex(gameState.lastToPass).score += 1;
+
+                // Show celebration animation
+                const playerPanels = document.querySelectorAll('.player-info');
+                if (playerPanels[gameState.lastToPass]) {
+                    const panel = playerPanels[gameState.lastToPass];
+                    panel.classList.add('animate-celebrate');
+                    setTimeout(() => panel.classList.remove('animate-celebrate'), 800);
+
+                    // Floating points
+                    showFloatingPoints('+1 🏆', panel);
+                }
+
+                showNotification(`🏆 ${getPlayerByIndex(gameState.lastToPass).name} was last standing! +1 point bonus`, 'success');
+            }
+
+            // Return draft pool + center token to category pool (they stay in their category)
+            if (gameState.selectedCategory) {
+                const tokensToReturn = [...gameState.draftPool];
+                if (gameState.centerToken) {
+                    tokensToReturn.push(gameState.centerToken);
+                }
+
+                // These tokens stay in the category pool but are not "available" for the next draw
+                // They stay in limbo until the game ends
+                // For simplicity, we'll just leave them out of the pool (they're effectively retired for this game)
+            }
+
+            // Check if game is over
+            if (gameState.round >= gameState.maxRounds) {
+                showNotification(`Round ${gameState.round} complete! Game Over!`, 'success');
+                setTimeout(() => showGameEndScreen(), 1500);
+                return;
+            }
+
+            showNotification(`Round ${gameState.round} ended! Starting next round...`, 'info');
+
+            // Increment round
+            gameState.round++;
+
+            // Start next round (will trigger category selection)
+            startNewRound();
+        }
+
+        // ===== GAME END =====
+        function showGameEndScreen() {
+            // Sort players by score (descending), then by tokens in hand, then by correct guesses
+            const sortedPlayers = [...gameState.players].sort((a, b) => {
+                if (b.score !== a.score) return b.score - a.score;
+                if (b.hand.length !== a.hand.length) return b.hand.length - a.hand.length;
+                return b.correctGuesses - a.correctGuesses;
+            });
+
+            // Determine winner(s)
+            const highestScore = sortedPlayers[0].score;
+            const winners = sortedPlayers.filter(p => p.score === highestScore);
+
+            // Winner announcement
+            const winnerDiv = document.getElementById('winnerAnnouncement');
+            if (winners.length === 1) {
+                winnerDiv.innerHTML = `
+                    <h1 style="font-size: 48px; margin-bottom: 10px;">🏆</h1>
+                    <h2 style="font-size: 36px; margin-bottom: 10px;">${winners[0].name} Wins!</h2>
+                    <p style="font-size: 24px; opacity: 0.9;">${winners[0].score} points</p>
+                `;
+            } else {
+                winnerDiv.innerHTML = `
+                    <h1 style="font-size: 48px; margin-bottom: 10px;">🏆</h1>
+                    <h2 style="font-size: 36px; margin-bottom: 10px;">It's a Tie!</h2>
+                    <p style="font-size: 24px; opacity: 0.9;">${winners.map(w => w.name).join(' & ')} - ${highestScore} points each</p>
+                `;
+            }
+
+            // Final standings
+            const standingsDiv = document.getElementById('finalStandings');
+            standingsDiv.innerHTML = sortedPlayers.map((player, index) => {
+                const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '';
+                return `
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid #eee;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span style="font-size: 24px; min-width: 40px;">${medal}</span>
+                            <div>
+                                <div style="font-weight: bold; font-size: 18px; color: #764ba2;">${player.name}</div>
+                                <div style="font-size: 12px; color: #666;">Tokens in hand: ${player.hand?.length || 0}</div>
+                            </div>
+                        </div>
+                        <div style="font-size: 28px; font-weight: bold; color: #764ba2;">${player.score} pts</div>
+                    </div>
+                `;
+            }).join('');
+
+            // Game stats
+            const statsDiv = document.getElementById('gameStats');
+            statsDiv.innerHTML = sortedPlayers.map(player => `
+                <div style="margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid #eee;">
+                    <h3 style="color: #764ba2; margin-bottom: 10px;">${player.name}</h3>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 14px;">
+                        <div>✅ Correct Guesses: <strong>${player.correctGuesses || 0}</strong></div>
+                        <div>💰 Cash Outs: <strong>${player.cashOuts || 0}</strong></div>
+                        <div>🃏 Tokens in Hand: <strong>${player.hand?.length || 0}</strong></div>
+                        <div>🎯 Final Score: <strong>${player.score || 0} pts</strong></div>
+                    </div>
+                </div>
+            `).join('');
+
+            // Show screen
+            showScreen('gameEndScreen');
+        }
+
+        // ===== UTILITIES =====
+        function showScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(screen => {
+                screen.classList.remove('active');
+            });
+            document.getElementById(screenId).classList.add('active');
+        }
+
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+
+            setTimeout(() => {
+                notification.remove();
+            }, 3000);
+        }
+
+        function showFloatingPoints(text, parentElement) {
+            const floater = document.createElement('div');
+            floater.className = 'points-float';
+            floater.textContent = text;
+
+            const rect = parentElement.getBoundingClientRect();
+            floater.style.left = rect.left + rect.width / 2 - 20 + 'px';
+            floater.style.top = rect.top + rect.height / 2 + 'px';
+
+            document.body.appendChild(floater);
+
+            setTimeout(() => floater.remove(), 1000);
+        }
+
+        function formatNumber(num) {
+            if (num >= 1000000000) {
+                return (num / 1000000000).toFixed(2) + 'B';
+            } else if (num >= 1000000) {
+                return (num / 1000000).toFixed(1) + 'M';
+            }
+            return num.toLocaleString();
+        }
+
+        function toggleDataVisibility() {
+            const isHidden = document.body.classList.toggle('hide-data');
+            const btn = document.getElementById('toggleDataBtn');
+
+            if (isHidden) {
+                btn.textContent = '👁️ Show Data';
+                showNotification('Data values hidden - play mode activated!', 'info');
+            } else {
+                btn.textContent = '👁️ Hide Data';
+                showNotification('Data values visible', 'info');
+            }
+        }
+
+        // ===== EVENT LISTENERS =====
+        document.getElementById('numPlayers').addEventListener('change', updatePlayerInputs);
+
+        // ===== INITIALIZE ON LOAD =====
+        window.addEventListener('DOMContentLoaded', initializeGame);
+    </script>
+</body>
+</html>
