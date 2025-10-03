@@ -1,0 +1,1001 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Content Security Policy for enhanced security -->
+    <meta http-equiv="Content-Security-Policy" content="
+        default-src 'self'; 
+        script-src 'self' 'unsafe-inline'; 
+        style-src 'self' 'unsafe-inline'; 
+        img-src 'self' data:; 
+        font-src 'self'; 
+        connect-src 'self'; 
+        media-src 'none'; 
+        object-src 'none'; 
+        child-src 'none'; 
+        frame-src 'none'; 
+        worker-src 'none'; 
+        manifest-src 'self'; 
+        base-uri 'self'; 
+        form-action 'self';
+        upgrade-insecure-requests;
+    ">
+    <title>OUTRANK - TOKENS UPDATED v4</title>
+    <!-- FORCE DEPLOY: July 6, 2025 - 12:58 AM -->
+    <link rel="stylesheet" href="styles.css?t=1752601702">
+</head>
+<body>
+    <div class="phone-container">
+        <div class="phone-frame">
+            <div class="phone-notch"></div>
+            <div class="status-bar">
+                <span class="status-time">9:41</span>
+                <div class="status-icons">
+                    <span class="status-signal">●●●</span>
+                    <span class="status-battery">100%</span>
+                </div>
+            </div>
+            
+            <!-- Title Screen -->
+            <div id="titleScreen" class="screen active" role="main" aria-label="Main menu">
+                <div class="app-header">
+                    <div class="header-background"></div>
+                    <h1 class="app-title">Know-It-All</h1>
+                    <p class="app-subtitle">Trivia Ranking Game</p>
+                </div>
+                
+                <div class="screen-content" role="navigation" aria-label="Game options menu">
+                    <div class="action-card">
+                        <div class="card-icon">👥</div>
+                        <div class="card-title">Setup Game</div>
+                        <div class="card-description">Add players and start a new game</div>
+                        <button class="btn primary" onclick="showScreen('playerScreen')" aria-label="Setup players for a new game">👥 Setup Players</button>
+                        <button class="btn secondary" onclick="quickSetup4Players()" style="margin-top: 8px;" aria-label="Quick setup with 4 default players">⚡ Quick 4-Player Setup</button>
+                    </div>
+                    
+                    <div class="action-card">
+                        <div class="card-icon">🏆</div>
+                        <div class="card-title">View Scores</div>
+                        <div class="card-description">See current tournament standings</div>
+                        <button class="btn secondary" onclick="showScreen('scoresScreen')" aria-label="View current tournament scores and standings">🏆 View Scores</button>
+                    </div>
+                    
+                    <div class="action-card">
+                        <div class="card-icon">🎲</div>
+                        <div class="card-title">Quick Demo</div>
+                        <div class="card-description">Try the game with sample data</div>
+                        <button class="btn primary" onclick="simulateQRScan()">🎲 Start Demo Game</button>
+                    </div>
+                    
+                    <div class="action-card">
+                        <div class="card-icon">📷</div>
+                        <div class="card-title">QR Scanner</div>
+                        <div class="card-description">Scan QR codes for real gameplay</div>
+                        <button class="btn secondary" onclick="startRealQRScan()">📷 Scan QR Code</button>
+                    </div>
+                    
+                    <div class="action-card">
+                        <div class="card-icon">🎯</div>
+                        <div class="card-title">Live Game Validation</div>
+                        <div class="card-description">Validate ranking attempts during physical gameplay</div>
+                        <button class="btn primary" onclick="showScreen('liveValidationScreen')">🎯 Start Live Validation</button>
+                    </div>
+                    
+                    <!-- Debug buttons for testing -->
+                    <div class="action-card" style="margin-top: 20px; background: #f0f0f0;">
+                        <div class="card-title">🔧 Debug Tests</div>
+                        <div class="card-description">Test functions while rebuilding</div>
+                        <button class="btn secondary" onclick="checkData()" style="margin: 5px;">Check Data</button>
+                        <button class="btn secondary" onclick="testFunction()" style="margin: 5px;">Test Function</button>
+                        <button class="btn secondary" onclick="testVisualConsole()" style="margin: 5px;">🖥️ Test Visual Console</button>
+                        <button class="btn secondary" onclick="runAutomatedTest()" style="margin: 5px;">🤖 Run Test v4</button>
+                        <button class="btn primary" onclick="runFastAutomatedTest()" style="margin: 5px;">⚡ Fast Test v4</button>
+                        <button class="btn secondary" onclick="testTokenReplacement()" style="margin: 5px;">🔄 Test Token Screen</button>
+                        <button class="btn secondary" onclick="viewTestResults()" style="margin: 5px;">📊 View Test Results</button>
+                        <button class="btn secondary" onclick="resetAllStatistics()" style="margin: 5px;">🔄 Reset Stats</button>
+                        <button class="btn secondary" onclick="showScreen('rulesScreen')" style="margin: 5px;">⚙️ Rules Config</button>
+                        <button class="btn primary" onclick="testStateMigration()" style="margin: 5px;">🧪 Test Migration</button>
+                        <button class="btn secondary" onclick="resetStateForTesting()" style="margin: 5px;">🔄 Reset State</button>
+                        <select id="debugCategorySelect" onchange="debugSetCategory(this.value)" style="margin: 5px; padding: 5px; font-size: 12px;">
+                            <option value="">🎯 Quick Category</option>
+                            <option value="countries">🌍 Countries</option>
+                            <option value="movies">🎬 Movies</option>
+                            <option value="sports">🏈 Sports Teams</option>
+                            <option value="companies">🏢 Companies</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Player Setup Screen -->
+            <div id="playerScreen" class="screen">
+                <div class="app-header">
+                    <div class="header-background"></div>
+                    <h2 class="screen-title">Setup Players</h2>
+                    <p class="screen-subtitle">Add players and select bidder</p>
+                </div>
+                
+                <div class="screen-content">
+                    <div class="form-card">
+                        <div class="section-header">
+                            <div class="section-icon">👥</div>
+                            <div class="section-title">Add Players</div>
+                        </div>
+                        
+                        <div id="allPlayers">
+                            <div class="form-group" id="playerGroup1">
+                                <label>Player 1:</label>
+                                <input type="text" id="player1" placeholder="Enter player name" oninput="updatePlayerCount()">
+                            </div>
+                        </div>
+                        
+                        <button class="btn secondary" onclick="addPlayer()">➕ Add Another Player</button>
+                    </div>
+                    
+                    <div class="form-card">
+                        <div class="section-header">
+                            <div class="section-icon">🎯</div>
+                            <div class="section-title">Ready to Start</div>
+                        </div>
+                        
+                        <div id="roundSummary" class="round-summary">
+                            <strong>Round 1</strong><br>
+                            <strong>Players:</strong> <span id="playerCount">Add players above</span><br>
+                            <strong>Next:</strong> Draw challenge and start bidding
+                        </div>
+                    </div>
+                    
+                    <div class="button-group">
+                        <button class="btn primary" onclick="startRoundWithBidder()">🚀 Start Round</button>
+                        <button class="btn secondary" onclick="showScreen('titleScreen')">🏠 Back to Home</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Category Selection Screen -->
+            <div id="categoryScreen" class="screen">
+                <div class="app-header">
+                    <div class="header-background"></div>
+                    <h2 class="screen-title">Choose Category</h2>
+                    <p class="screen-subtitle" id="categoryChooserName">Player's turn to choose</p>
+                </div>
+                
+                <div class="screen-content">
+                    <div class="form-card">
+                        <div class="section-header">
+                            <div class="section-icon">🌍</div>
+                            <div class="section-title">Countries</div>
+                        </div>
+                        <div class="category-challenge" id="countryChallenge">
+                            Countries: Loading challenge...
+                        </div>
+                        <button class="btn primary" onclick="selectCategory('countries')">🌍 Choose Countries</button>
+                    </div>
+                    
+                    <div class="form-card">
+                        <div class="section-header">
+                            <div class="section-icon">🎬</div>
+                            <div class="section-title">Movies</div>
+                        </div>
+                        <div class="category-challenge" id="movieChallenge">
+                            Movies: Loading challenge...
+                        </div>
+                        <button class="btn primary" onclick="selectCategory('movies')">🎬 Choose Movies</button>
+                    </div>
+                    
+                    <div class="form-card">
+                        <div class="section-header">
+                            <div class="section-icon">🏈</div>
+                            <div class="section-title">Sports Teams</div>
+                        </div>
+                        <div class="category-challenge" id="sportsChallenge">
+                            Sports Teams: Loading challenge...
+                        </div>
+                        <button class="btn primary" onclick="selectCategory('sports')">🏈 Choose Sports Teams</button>
+                    </div>
+                    
+                    <div class="form-card">
+                        <div class="section-header">
+                            <div class="section-icon">🏢</div>
+                            <div class="section-title">Companies</div>
+                        </div>
+                        <div class="category-challenge" id="companiesChallenge">
+                            Companies: Loading challenge...
+                        </div>
+                        <button class="btn primary" onclick="selectCategory('companies')">🏢 Choose Companies</button>
+                    </div>
+                    
+                    <div class="button-group">
+                        <button class="btn secondary" onclick="showScreen('playerScreen')">⬅️ Back to Players</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Bidding Screen -->
+            <div id="biddingScreen" class="screen">
+                <div class="app-header">
+                    <div class="header-background"></div>
+                    <h2 class="screen-title">Bidding Phase</h2>
+                    <p class="screen-subtitle">How many cards can you rank correctly?</p>
+                    <div id="categoryIndicator" class="category-indicator">
+                        <span class="category-badge" id="categoryBadge">🌍 Countries</span>
+                    </div>
+                </div>
+                
+                <div class="screen-content">
+                    <div class="info-card">
+                        <div id="promptInfo">
+                            <div class="card-title">Challenge Loading...</div>
+                            <div class="card-description">Setting up the game...</div>
+                        </div>
+                    </div>
+                    
+                    <div id="drawnCardsInfo">
+                        <!-- Cards drawn info goes here -->
+                    </div>
+                    
+                    <div id="ownedCardsInfo" style="display: none;">
+                        <!-- Owned cards info goes here -->
+                    </div>
+                    
+                    <div class="form-card">
+                        <div class="section-header">
+                            <div class="section-icon">👑</div>
+                            <div class="section-title">Current High Bidder</div>
+                        </div>
+                        <div id="highBidderDisplay" class="high-bidder-display">
+                            <div class="high-bid-amount">No bids yet</div>
+                            <div class="high-bid-player">Waiting for first bid...</div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-card">
+                        <div class="section-header">
+                            <div class="section-icon">💰</div>
+                            <div class="section-title">Player Bidding</div>
+                        </div>
+                        <div id="playerBidding">
+                            <!-- Player bidding interfaces will be generated here -->
+                        </div>
+                    </div>
+                    
+                    <div class="button-group">
+                        <button class="btn primary" onclick="finishBidding()">✅ Finish Bidding</button>
+                        <button class="btn secondary" onclick="showScreen('playerScreen')">⬅️ Back to Players</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Blocking Screen -->
+            <div id="blockingScreen" class="screen">
+                <div class="app-header">
+                    <div class="header-background"></div>
+                    <h2 class="screen-title">Blocking Phase</h2>
+                    <p class="screen-subtitle">Place blocking tokens to challenge the bidder</p>
+                    <div class="category-indicator">
+                        <span class="category-badge" id="blockingCategoryBadge">🌍 Countries</span>
+                    </div>
+                </div>
+                
+                <div class="screen-content">
+                    <div class="info-card">
+                        <div id="blockingInfo">
+                            <div class="card-title">Blocking Phase</div>
+                            <div class="card-description">Players can block cards from the bidder</div>
+                        </div>
+                    </div>
+                    
+                    <div id="availableCards">
+                        <!-- Available cards for blocking -->
+                    </div>
+                    
+                    <div id="blockingTokens">
+                        <!-- Blocking tokens interface -->
+                    </div>
+                    
+                    <div class="button-group">
+                        <button class="btn primary" onclick="finishBlocking()">✅ Finish Blocking</button>
+                        <button class="btn secondary" onclick="skipBlocking()">⏭️ Skip Blocking</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Card Scanning Screen -->
+            <div id="scanScreen" class="screen">
+                <div class="app-header">
+                    <div class="header-background"></div>
+                    <h2 class="screen-title">Scan Cards</h2>
+                    <p class="screen-subtitle">Build your ranking</p>
+                    <div class="category-indicator">
+                        <span class="category-badge" id="scanCategoryBadge">🌍 Countries</span>
+                    </div>
+                </div>
+                
+                <div class="screen-content">
+                    <div class="info-card">
+                        <div id="scanInfo">
+                            <div class="card-title">Scan Your Cards</div>
+                            <div class="card-description">Enter card numbers in your desired order</div>
+                        </div>
+                    </div>
+                    
+                    <div id="availableCardsForSelection">
+                        <!-- Available cards will be displayed here -->
+                    </div>
+                    
+                    <div class="form-card">
+                        <div class="section-header">
+                            <div class="section-icon">📱</div>
+                            <div class="section-title">Card Entry</div>
+                        </div>
+                        <div class="form-group">
+                            <label>Enter card number (1-10):</label>
+                            <input type="text" id="cardInput" placeholder="Enter card number...">
+                            <button class="btn primary" onclick="scanCard()">📱 Add Card</button>
+                        </div>
+                    </div>
+                    
+                    <div class="cards-container">
+                        <h3>Your Ranking:</h3>
+                        <div id="scannedCards">
+                            <!-- Scanned cards will appear here -->
+                        </div>
+                    </div>
+                    
+                    <div class="button-group">
+                        <button id="finishBtn" class="btn primary" onclick="finishScanning()" style="display: none;">✅ Finish Scanning</button>
+                        <button class="btn secondary" onclick="console.log('Button clicked!'); showScreen('blockingScreen')">⬅️ Back to Blocks</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Reveal Screen -->
+            <div id="revealScreen" class="screen">
+                <div class="app-header">
+                    <div class="header-background"></div>
+                    <h2 class="screen-title">Reveal Phase</h2>
+                    <p class="screen-subtitle">See if your ranking is correct</p>
+                    <div class="category-indicator">
+                        <span class="category-badge" id="revealCategoryBadge">🌍 Countries</span>
+                    </div>
+                </div>
+                
+                <div class="screen-content">
+                    <div class="info-card">
+                        <div id="revealInfo">
+                            <div class="card-title">Revealing Cards</div>
+                            <div class="card-description">Click to reveal each card</div>
+                        </div>
+                    </div>
+                    
+                    <div class="progress-card">
+                        <div class="progress-header">
+                            <span>Progress:</span>
+                            <span id="revealProgress">0 of 0</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div id="revealProgressBar" class="progress-fill"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="cards-container">
+                        <div id="revealCards">
+                            <!-- Reveal cards will appear here -->
+                        </div>
+                    </div>
+                    
+                    <div class="button-group">
+                        <button id="revealBtn" class="btn primary" onclick="revealNext()">▶️ Reveal Next Card</button>
+                        <button class="btn secondary" onclick="newGame()">🏠 Back to Home</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Interim Screen -->
+            <div id="interimScreen" class="screen">
+                <div class="app-header">
+                    <div class="header-background"></div>
+                    <h2 class="screen-title">Round Complete!</h2>
+                    <p class="screen-subtitle">Current standings and blocking tokens</p>
+                </div>
+                
+                <div class="screen-content">
+                    <div class="info-card">
+                        <div class="section-header">
+                            <div class="section-icon">🏆</div>
+                            <div class="section-title">Current Standings</div>
+                        </div>
+                        <div id="interimLeaderboard">
+                            <!-- Interim leaderboard will appear here -->
+                        </div>
+                    </div>
+                    
+                    <div class="info-card">
+                        <div class="section-header">
+                            <div class="section-icon">💎</div>
+                            <div class="section-title">Blocking Tokens</div>
+                        </div>
+                        <div id="interimTokenInventory">
+                            <!-- Token inventory will appear here -->
+                        </div>
+                    </div>
+                    
+                    <div class="info-card">
+                        <div class="section-header">
+                            <div class="section-icon">📋</div>
+                            <div class="section-title">Round Summary</div>
+                        </div>
+                        <div id="interimRoundSummary">
+                            <!-- Round summary will appear here -->
+                        </div>
+                    </div>
+                    
+                    <div class="button-group">
+                        <button class="btn primary" onclick="continueToNextRound()">🚀 Continue to Next Round</button>
+                        <button class="btn secondary" onclick="showScreen('scoresScreen')">📊 View Full Scores</button>
+                        <button class="btn secondary" onclick="newGame()">🏠 New Game</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Results Screen -->
+            <div id="resultsScreen" class="screen">
+                <div id="resultsHeader" class="app-header">
+                    <div class="header-background"></div>
+                    <h2 id="resultsTitle" class="screen-title">Game Results</h2>
+                    <p class="screen-subtitle">How did you do?</p>
+                </div>
+                
+                <div class="screen-content">
+                    <div class="info-card">
+                        <div id="resultsContent">
+                            <div class="card-title">Round Results</div>
+                            <div class="card-description">Game completed</div>
+                        </div>
+                    </div>
+                    
+                    <div class="cards-container">
+                        <h3>Final Ranking:</h3>
+                        <div id="finalRanking">
+                            <!-- Final ranking will appear here -->
+                        </div>
+                    </div>
+                    
+                    <div class="button-group">
+                        <button class="btn primary" onclick="nextRound()">🔄 Next Round</button>
+                        <button class="btn secondary" onclick="showScreen('scoresScreen')">🏆 View Scores</button>
+                        <button class="btn secondary" onclick="newGame()">🏠 New Game</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Scores Screen -->
+            <div id="scoresScreen" class="screen">
+                <div class="app-header">
+                    <div class="header-background"></div>
+                    <h2 class="screen-title">Tournament Scores</h2>
+                    <p class="screen-subtitle">Current standings and statistics</p>
+                </div>
+                
+                <div class="screen-content">
+                    <div class="info-card">
+                        <div class="section-header">
+                            <div class="section-icon">🏆</div>
+                            <div class="section-title">Leaderboard</div>
+                        </div>
+                        <div id="leaderboard">
+                            <div class="no-scores-message">No games played yet!<br>Play some rounds to see the leaderboard.</div>
+                        </div>
+                    </div>
+                    
+                    <div class="info-card">
+                        <div class="section-header">
+                            <div class="section-icon">📊</div>
+                            <div class="section-title">Player Statistics</div>
+                        </div>
+                        <div id="playerStats">
+                            <div class="no-scores-message">No statistics available yet!</div>
+                        </div>
+                    </div>
+                    
+                    <div class="info-card">
+                        <div class="section-header">
+                            <div class="section-icon">💎</div>
+                            <div class="section-title">Chip Inventory</div>
+                        </div>
+                        <div id="chipInventory">
+                            <div class="no-scores-message">No chip data available!</div>
+                        </div>
+                    </div>
+                    
+                    <div class="button-group">
+                        <button class="btn primary" onclick="showScreen('playerScreen')">🎮 Play Round</button>
+                        <button class="btn secondary" onclick="clearScores()">🗑️ Clear Scores</button>
+                        <button class="btn secondary" onclick="showScreen('titleScreen')">🏠 Back to Home</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Test Results Screen -->
+            <div id="testResultsScreen" class="screen">
+                <div class="app-header">
+                    <div class="header-background"></div>
+                    <h2 class="screen-title">📊 Test Results</h2>
+                    <p class="screen-subtitle">Automated test history and analytics</p>
+                </div>
+                
+                <div class="screen-content">
+                    <div class="info-card">
+                        <div class="section-header">
+                            <div class="section-icon">🎯</div>
+                            <div class="section-title">Test Overview</div>
+                        </div>
+                        <div id="testOverview">
+                            <div class="no-scores-message">No automated tests have been run yet!</div>
+                        </div>
+                    </div>
+                    
+                    <div class="info-card">
+                        <div class="section-header">
+                            <div class="section-icon">👥</div>
+                            <div class="section-title">Player Performance</div>
+                        </div>
+                        <div id="playerPerformance">
+                            <div class="no-scores-message">No player data available!</div>
+                        </div>
+                    </div>
+                    
+                    <div class="info-card">
+                        <div class="section-header">
+                            <div class="section-icon">📋</div>
+                            <div class="section-title">Round Details</div>
+                        </div>
+                        <div id="roundDetails">
+                            <div class="no-scores-message">No round data available!</div>
+                        </div>
+                    </div>
+                    
+                    <div class="info-card">
+                        <div class="section-header">
+                            <div class="section-icon">🖥️</div>
+                            <div class="section-title">Live Console Output</div>
+                            <div style="margin-left: auto; display: flex; gap: 5px;">
+                                <button class="btn secondary" onclick="exportConsoleToFile()" style="width: auto; padding: 4px 8px; font-size: 12px;">📥 Export</button>
+                                <button class="btn secondary" onclick="clearConsoleOutput()" style="width: auto; padding: 4px 8px; font-size: 12px;">Clear</button>
+                                <button class="btn secondary" onclick="disableVisualConsole()" style="width: auto; padding: 4px 8px; font-size: 12px;">Disable</button>
+                            </div>
+                        </div>
+                        <div id="consoleOutput" class="console-output">
+                            <div class="console-message">Console output will appear here during automated tests...</div>
+                        </div>
+                    </div>
+                    
+                    <div class="button-group">
+                        <button class="btn primary" onclick="runAutomatedTest()">🤖 Run Test v4</button>
+                        <button class="btn secondary" onclick="exportTestResults()">📤 Export Results</button>
+                        <button class="btn secondary" onclick="clearTestResults()">🗑️ Clear Results</button>
+                        <button class="btn secondary" onclick="showScreen('titleScreen')">🏠 Back to Home</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Rules Configuration Screen -->
+            <div id="rulesScreen" class="screen">
+                <div class="app-header">
+                    <div class="header-background"></div>
+                    <h2 class="screen-title">⚙️ Rules Configuration</h2>
+                    <p class="screen-subtitle">Configure game mechanics for testing and iteration</p>
+                </div>
+                
+                <div class="screen-content">
+                    <!-- Quick Presets -->
+                    <div class="info-card">
+                        <div class="section-header">
+                            <div class="section-icon">🎮</div>
+                            <div class="section-title">Game Mode Presets</div>
+                        </div>
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                            <button class="btn secondary" onclick="loadRulePreset('classic')" style="flex: 1;">Classic</button>
+                            <button class="btn secondary" onclick="loadRulePreset('tokenOwnership')" style="flex: 1;">Token Ownership</button>
+                            <button class="btn secondary" onclick="loadRulePreset('highStakes')" style="flex: 1;">High Stakes</button>
+                            <button class="btn secondary" onclick="loadRulePreset('experimental')" style="flex: 1;">Experimental</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Token Economics -->
+                    <div class="info-card">
+                        <div class="section-header">
+                            <div class="section-icon">💎</div>
+                            <div class="section-title">Token Economics</div>
+                        </div>
+                        
+                        <div class="rule-item">
+                            <label for="startingTokens">Starting Tokens (each type):</label>
+                            <input type="number" id="startingTokens" value="1" min="0" max="5" style="width: 60px;">
+                            <span class="rule-description">How many 2s, 4s, and 6s each player starts with</span>
+                        </div>
+                        
+                        <div class="rule-item">
+                            <label for="blockingReward">Blocking Points:</label>
+                            <input type="number" id="blockingReward" value="1" min="0" max="10" style="width: 60px;" disabled>
+                            <span class="rule-description">AUTOMATIC: Points = token value used (2-token = 2pts, 6-token = 6pts)</span>
+                        </div>
+                        
+                        <div class="rule-item">
+                            <label><input type="checkbox" id="tokenOwnership"> Token Ownership</label>
+                            <span class="rule-description">When you successfully block a card (like China), you own that token for future use</span>
+                        </div>
+                        
+                        <div class="rule-item">
+                            <label><input type="checkbox" id="requireSuccessfulBlock" checked> Require Successful Block</label>
+                            <span class="rule-description">Must successfully block to gain token ownership (if Token Ownership enabled)</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Bidding & Scoring -->
+                    <div class="info-card">
+                        <div class="section-header">
+                            <div class="section-icon">🏆</div>
+                            <div class="section-title">Bidding & Scoring</div>
+                        </div>
+                        
+                        <div class="rule-item">
+                            <label><input type="checkbox" id="competitiveBidding" checked> Competitive Bidding</label>
+                            <span class="rule-description">Multiple players can bid against each other</span>
+                        </div>
+                        
+                        <div class="rule-item">
+                            <label><input type="checkbox" id="mustStartAtOne" checked> Must Start at 1 Card</label>
+                            <span class="rule-description">Bidding always starts at 1 card and builds up</span>
+                        </div>
+                        
+                        <div class="rule-item">
+                            <label for="bidMultiplier">Bid Success Multiplier:</label>
+                            <input type="number" id="bidMultiplier" value="1.0" min="0.5" max="5.0" step="0.5" style="width: 80px;">
+                            <span class="rule-description">Multiply bid success points (1.0 = normal, 2.0 = double points)</span>
+                        </div>
+                        
+                        <div class="rule-item">
+                            <label for="maxBid">Maximum Bid:</label>
+                            <input type="number" id="maxBid" value="10" min="1" max="20" style="width: 60px;">
+                            <span class="rule-description">Highest number of cards that can be bid</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Card Pool Mechanics -->
+                    <div class="info-card">
+                        <div class="section-header">
+                            <div class="section-icon">🃏</div>
+                            <div class="section-title">Card Pool Mechanics</div>
+                        </div>
+                        
+                        <div class="rule-item">
+                            <label><input type="checkbox" id="allowBlocking" checked> Allow Blocking</label>
+                            <span class="rule-description">Players can use blocking tokens to challenge the bidder</span>
+                        </div>
+                        
+                        <div class="rule-item">
+                            <label><input type="checkbox" id="tokenReplacement"> Token Replacement in Pool</label>
+                            <span class="rule-description">Replace any card in the 10 with one of your owned tokens</span>
+                        </div>
+                        
+                        <div class="rule-item">
+                            <label><input type="checkbox" id="refreshUsedCards"> Refresh Used Cards</label>
+                            <span class="rule-description">Replace cards used in ranking attempts with new cards next round</span>
+                        </div>
+                        
+                        <div class="rule-item">
+                            <label><input type="checkbox" id="allowOwnedInSelection"> Use Owned Tokens in Selection</label>
+                            <span class="rule-description">Use your owned tokens when selecting cards for ranking</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Game Flow -->
+                    <div class="info-card">
+                        <div class="section-header">
+                            <div class="section-icon">🎯</div>
+                            <div class="section-title">Game Flow</div>
+                        </div>
+                        
+                        <div class="rule-item">
+                            <label for="maxRounds">Maximum Rounds:</label>
+                            <input type="number" id="maxRounds" value="6" min="1" max="15" style="width: 60px;">
+                            <span class="rule-description">Game ends after this many rounds</span>
+                        </div>
+                        
+                        <div class="rule-item">
+                            <label for="winningScore">Winning Score:</label>
+                            <input type="number" id="winningScore" value="30" min="10" max="100" style="width: 60px;">
+                            <span class="rule-description">Score needed to win the game</span>
+                        </div>
+                        
+                        <div class="rule-item">
+                            <label for="endGameTokenPoints">Points per Country Token at End:</label>
+                            <input type="number" id="endGameTokenPoints" value="1" min="0" max="5" style="width: 60px;">
+                            <span class="rule-description">Bonus points for each owned country token at game end (0 = disabled)</span>
+                        </div>
+                        
+                        <div class="rule-item">
+                            <label for="endGameBlockingTokenPoints">Points per Blocking Token at End:</label>
+                            <input type="number" id="endGameBlockingTokenPoints" value="1" min="0" max="5" style="width: 60px;">
+                            <span class="rule-description">Bonus points for each remaining blocking token at game end (0 = disabled)</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Live Preview -->
+                    <div class="info-card">
+                        <div class="section-header">
+                            <div class="section-icon">📋</div>
+                            <div class="section-title">Current Configuration</div>
+                        </div>
+                        <div id="rulesPreview" style="background: #f8f9fa; padding: 15px; border-radius: 8px; font-family: monospace; font-size: 14px;">
+                            <div id="activeRulesList">Rules configuration will appear here...</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Actions -->
+                    <div class="button-group">
+                        <button class="btn primary" onclick="applyRulesAndStart()">🚀 Apply Rules & Start Game</button>
+                        <button class="btn secondary" onclick="updateRulesPreview()">🔄 Update Preview</button>
+                        <button class="btn secondary" onclick="showScreen('titleScreen')">🏠 Back to Home</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Token Replacement Screen -->
+            <div class="screen" id="tokenReplacementScreen">
+                <div class="screen-header">
+                    <h2>🔄 Token Replacements</h2>
+                </div>
+                <div class="screen-content" id="tokenReplacementContent">
+                    <div class="info-card" style="background: #e3f2fd; margin-bottom: 20px;">
+                        <div class="card-title" id="tokenReplacementTitle">Round 2 Token Changes</div>
+                        <div style="margin: 15px 0; padding: 10px; background: #f8f9fa; border-radius: 5px; font-size: 13px; color: #666;">
+                            <strong>What happened:</strong> Cards used in gameplay are removed from the pool and replaced with new cards to maintain game balance.
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px;">
+                            <div>
+                                <h3 style="color: #dc2626; font-size: 16px;" id="removedTokensHeader">❌ Cards Used in Gameplay</h3>
+                                <div id="removedTokensList" style="margin-top: 10px;"></div>
+                            </div>
+                            <div>
+                                <h3 style="color: #16a34a; font-size: 16px;" id="addedTokensHeader">✅ Replacement Cards</h3>
+                                <div id="addedTokensList" style="margin-top: 10px;"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="btn primary" onclick="continueFromTokenReplacement()">Continue</button>
+                </div>
+            </div>
+
+            <!-- Live Game Validation Screen -->
+            <div id="liveValidationScreen" class="screen">
+                <div class="app-header">
+                    <div class="header-background"></div>
+                    <h2 class="screen-title">🎯 Live Game Validation</h2>
+                    <p class="screen-subtitle">Validate ranking attempts during physical gameplay</p>
+                </div>
+                
+                <div class="screen-content" id="liveValidationContent">
+                    <div class="info-card" style="background: #e3f2fd; margin-bottom: 20px;">
+                        <div class="card-title">📋 Challenge Setup</div>
+                        <div class="card-description">Enter the challenge details from your physical game</div>
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 15px;">
+                            <div>
+                                <label style="display: block; margin-bottom: 5px; font-weight: bold;">Category:</label>
+                                <select id="liveValidationCategory" onchange="toggleDatasetSelector(); populateChallenges()" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    <option value="">Select Category</option>
+                                    <option value="companies">Companies</option>
+                                    <option value="countries">Countries</option>
+                                    <option value="movies">Movies</option>
+                                    <option value="sports">Sports</option>
+                                </select>
+                            </div>
+                            
+                            <div id="datasetSelectorDiv" style="display: none;">
+                                <label style="display: block; margin-bottom: 5px; font-weight: bold;">📊 Dataset:</label>
+                                <select id="liveValidationDataset" onchange="populateChallenges()" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    <option value="production">🎮 Production (40 countries, 32 challenges)</option>
+                                    <option value="master">📚 Master (200 countries, 146 challenges)</option>
+                                </select>
+                            </div>
+                            
+                            <div>
+                                <label style="display: block; margin-bottom: 5px; font-weight: bold;">Challenge:</label>
+                                <select id="liveChallengeSelect" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    <option value="">Select a challenge...</option>
+                                </select>
+                                <input type="hidden" id="liveChalllengeNumber" />
+                            </div>
+                            
+                            <div>
+                                <label style="display: block; margin-bottom: 5px; font-weight: bold;">Winning Bid:</label>
+                                <select id="liveBidAmount" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                    <option value="">Select bid...</option>
+                                    <option value="1">1</option>
+                                    <option value="2">2</option>
+                                    <option value="3">3</option>
+                                    <option value="4">4</option>
+                                    <option value="5">5</option>
+                                    <option value="6">6</option>
+                                    <option value="7">7</option>
+                                    <option value="8">8</option>
+                                    <option value="9">9</option>
+                                    <option value="10">10</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <button class="btn primary" onclick="setupLiveValidation()" style="width: 100%; margin-top: 15px;">
+                            🎲 Start Validation Setup
+                        </button>
+                    </div>
+                    
+                    <div id="liveValidationResults" style="margin-top: 20px;"></div>
+                    
+                    <div class="screen-actions">
+                        <button class="btn secondary" onclick="showScreen('titleScreen')">🏠 Back to Home</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- IMPORTANT: Load data.js FIRST, then game.js -->
+ <script src="data.js?v=44"></script>
+    <script src="game.js?v=36"></script>
+    
+    <script>
+        // Ensure functions are available immediately
+        function toggleDatasetSelector() {
+            const category = document.getElementById('liveValidationCategory').value;
+            const datasetDiv = document.getElementById('datasetSelectorDiv');
+            
+            if (category === 'countries') {
+                datasetDiv.style.display = 'block';
+            } else {
+                datasetDiv.style.display = 'none';
+            }
+        }
+        
+        // Load master dataset for challenge population
+        async function loadMasterDatasetForChallenges() {
+            if (window.masterDatasetCache) {
+                return window.masterDatasetCache;
+            }
+            
+            try {
+                const response = await fetch('master_country_dataset_FINAL_2025-07-26T22-14-26.json');
+                if (!response.ok) throw new Error('Failed to load master dataset');
+                
+                const masterData = await response.json();
+                
+                // Convert to game data format
+                const gameData = {
+                    categories: {
+                        countries: {
+                            name: "Countries",
+                            icon: "🌍",
+                            items: {},
+                            prompts: []
+                        }
+                    }
+                };
+                
+                // Convert countries to game format
+                Object.entries(masterData.countries).forEach(([countryCode, countryData]) => {
+                    gameData.categories.countries.items[countryCode] = {
+                        name: countryData.name,
+                        code: countryCode,
+                        ...Object.fromEntries(
+                            Object.entries(countryData.categories || {}).map(([key, data]) => [
+                                key, data.value || data.rawValue
+                            ])
+                        )
+                    };
+                });
+                
+                // Add prompts for available challenges
+                Object.keys(masterData.categoryIndex).forEach((challenge, index) => {
+                    gameData.categories.countries.prompts.push({
+                        challenge: challenge,
+                        label: `Rank by ${challenge}`
+                    });
+                });
+                
+                // Cache the result and sync with validation state
+                window.masterDatasetCache = gameData;
+                if (typeof liveValidationState !== 'undefined') {
+                    liveValidationState.masterDataset = gameData;
+                }
+                return gameData;
+                
+            } catch (error) {
+                console.error('Failed to load master dataset:', error);
+                throw error;
+            }
+        }
+        
+        async function populateChallenges() {
+            const category = document.getElementById('liveValidationCategory').value;
+            const challengeSelect = document.getElementById('liveChallengeSelect');
+            const challengeNumberInput = document.getElementById('liveChalllengeNumber');
+            
+            // Clear current options
+            challengeSelect.innerHTML = '<option value="">Select a challenge...</option>';
+            challengeNumberInput.value = '';
+            
+            if (!category) return;
+            
+            let gameData = window.GAME_DATA;
+            
+            // Load master dataset if needed for countries
+            if (category === 'countries') {
+                const selectedDataset = document.getElementById('liveValidationDataset').value;
+                if (selectedDataset === 'master') {
+                    try {
+                        gameData = await loadMasterDatasetForChallenges();
+                        if (!gameData) {
+                            alert('Failed to load master dataset');
+                            return;
+                        }
+                        // Sync with validation state
+                        if (typeof liveValidationState !== 'undefined') {
+                            liveValidationState.currentDataset = 'master';
+                        }
+                    } catch (error) {
+                        console.error('Failed to load master dataset:', error);
+                        alert('Failed to load master dataset challenges');
+                        return;
+                    }
+                } else {
+                    // Set to production dataset
+                    if (typeof liveValidationState !== 'undefined') {
+                        liveValidationState.currentDataset = 'production';
+                    }
+                }
+            }
+            
+            // Get challenges for the selected category
+            if (gameData && gameData.categories && gameData.categories[category]) {
+                const challenges = gameData.categories[category].prompts || [];
+                
+                challenges.forEach((challenge, index) => {
+                    const challengeNumber = String(index + 1).padStart(3, '0');
+                    const option = document.createElement('option');
+                    option.value = challengeNumber;
+                    option.textContent = `${challengeNumber} - ${extractChallengeTitle(challenge.label || challenge.challenge)}`;
+                    challengeSelect.appendChild(option);
+                });
+                
+                console.log(`Master dataset: Loaded ${challenges.length} challenges (001-${String(challenges.length).padStart(3, '0')})`);
+                
+                console.log(`Loaded ${challenges.length} challenges for ${category}`);
+            }
+            
+            // Update challenge number when selection changes
+            challengeSelect.onchange = function() {
+                challengeNumberInput.value = this.value;
+            };
+        }
+        
+        function extractChallengeTitle(label) {
+            if (!label) return 'Unknown Challenge';
+            
+            // Remove HTML tags and extract meaningful title
+            const cleanLabel = label.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+            
+            // Try to extract the main question/title
+            const lines = cleanLabel.split(/\n|\r/).filter(line => line.trim());
+            if (lines.length > 0) {
+                // Use the first substantial line
+                return lines[0].substring(0, 50) + (lines[0].length > 50 ? '...' : '');
+            }
+            
+            return cleanLabel.substring(0, 50) + (cleanLabel.length > 50 ? '...' : '');
+        }
+    </script>
+</body>
+</html>
