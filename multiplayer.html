@@ -3338,8 +3338,13 @@
                 });
                 console.log(`✅ Pass synced - turn advanced to Player ${nextPlayerIndex}`);
             } else {
-                // LOCAL MODE: Advance turn to next active player
-                if (!allPassed) {
+                // LOCAL MODE: Advance turn to next active player OR end round if all passed
+                if (allPassed) {
+                    console.log('🏁 All players passed (local mode) - calling endRound()');
+                    updateGameUI();
+                    endRound();
+                    return;
+                } else {
                     let nextPlayerIndex = gameState.currentPlayer;
                     let attempts = 0;
                     do {
@@ -3357,8 +3362,8 @@
 
             updateGameUI();
 
-            // V4.75: endRound is now triggered by 'roundEnd' phase change, not here
-            // The passRound logic above changes phase to 'roundEnd' when all players pass
+            // V4.81: In online mode, endRound is triggered by 'roundEnd' phase change (line 1825-1829)
+            // In local mode, endRound is called directly above when all players pass
         }
 
         function endRound() {
