@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>4f4 V4.81 - Multiplayer</title>
+    <title>4f4 V4.82 - Multiplayer</title>
 
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
@@ -696,7 +696,7 @@
         <!-- MODE SELECTION SCREEN -->
         <div id="modeSelectionScreen" class="screen active">
             <div class="header">
-                <h1>4f4 V4.81</h1>
+                <h1>4f4 V4.82</h1>
                 <p class="subtitle">Multiplayer</p>
             </div>
 
@@ -750,7 +750,7 @@
         <!-- ONLINE SETUP SCREEN -->
         <div id="onlineSetupScreen" class="screen">
             <div class="header">
-                <h1>4f4 V4.81 - Online</h1>
+                <h1>4f4 V4.82 - Online</h1>
                 <p class="subtitle">Connect with Friends</p>
             </div>
 
@@ -936,7 +936,7 @@
             </div>
 
             <div class="header">
-                <h1>4f4 V4.81</h1>
+                <h1>4f4 V4.82</h1>
                 <p class="subtitle" id="playerNameDisplay" style="font-weight: bold; color: #667eea; margin-bottom: 5px;">Loading...</p>
                 <p class="subtitle">Round <span id="roundNumber">1</span></p>
                 <button id="toggleDataBtn" class="btn btn-secondary" style="position: absolute; top: 20px; right: 20px; padding: 8px 15px; font-size: 0.9em;" onclick="toggleDataVisibility()">
@@ -1820,12 +1820,22 @@
                         console.log('♻️ Continuous UI update');
                         updateGameUI();
 
-                        // V4.75: Handle 'roundEnd' phase - show modal to both players, then endRound
-                        // Use a flag to prevent calling endRound multiple times
+                        // V4.82: Handle 'roundEnd' phase - ONLY last player to pass calls endRound
+                        // This prevents both clients from calling endRound simultaneously
                         if (gameState.phase === 'roundEnd' && !window.endRoundCalled) {
-                            console.log('🏁 Round end phase detected - calling endRound()');
-                            window.endRoundCalled = true;
-                            setTimeout(() => endRound(), 100);
+                            // Only the player who was last to pass should call endRound
+                            const playerIds = window.playerIds || [];
+                            const lastToPassId = playerIds[gameState.lastToPass];
+                            const isLastToPasser = lastToPassId === window.currentUserId;
+
+                            if (isLastToPasser) {
+                                console.log('🏁 Round end - I was last to pass, calling endRound()');
+                                window.endRoundCalled = true;
+                                setTimeout(() => endRound(), 100);
+                            } else {
+                                console.log('🏁 Round end - waiting for last passer to call endRound()');
+                                window.endRoundCalled = true; // Prevent checking again
+                            }
                             return;
                         }
 
