@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>4f4 V4.74 - Multiplayer</title>
+    <title>4f4 V4.75 - Multiplayer</title>
 
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
@@ -696,7 +696,7 @@
         <!-- MODE SELECTION SCREEN -->
         <div id="modeSelectionScreen" class="screen active">
             <div class="header">
-                <h1>4f4 V4.74</h1>
+                <h1>4f4 V4.75</h1>
                 <p class="subtitle">Multiplayer</p>
             </div>
 
@@ -750,7 +750,7 @@
         <!-- ONLINE SETUP SCREEN -->
         <div id="onlineSetupScreen" class="screen">
             <div class="header">
-                <h1>4f4 V4.74 - Online</h1>
+                <h1>4f4 V4.75 - Online</h1>
                 <p class="subtitle">Connect with Friends</p>
             </div>
 
@@ -936,7 +936,7 @@
             </div>
 
             <div class="header">
-                <h1>4f4 V4.74</h1>
+                <h1>4f4 V4.75</h1>
                 <p class="subtitle" id="playerNameDisplay" style="font-weight: bold; color: #667eea; margin-bottom: 5px;">Loading...</p>
                 <p class="subtitle">Round <span id="roundNumber">1</span></p>
                 <button id="toggleDataBtn" class="btn btn-secondary" style="position: absolute; top: 20px; right: 20px; padding: 8px 15px; font-size: 0.9em;" onclick="toggleDataVisibility()">
@@ -1537,7 +1537,7 @@
             gameStateRef.on('value', (snapshot) => {
                 const gameStateData = snapshot.val();
                 console.log('📡 Lobby listener - phase:', gameStateData?.phase);
-                if (gameStateData && (gameStateData.phase === 'challenge' || gameStateData.phase === 'playing')) {
+                if (gameStateData && (gameStateData.phase === 'challenge' || gameStateData.phase === 'playing' || gameStateData.phase === 'roundEnd')) {
                     // Game has started, transition to game screen
                     console.log('🚀 Game started! Setting up sync...');
                     syncGameStateFromFirebase();
@@ -1829,6 +1829,13 @@
                         // Continuous UI updates during gameplay
                         console.log('♻️ Continuous UI update');
                         updateGameUI();
+
+                        // V4.75: Handle 'roundEnd' phase - show modal to both players, then endRound
+                        if (gameState.phase === 'roundEnd') {
+                            console.log('🏁 Round end phase detected - calling endRound()');
+                            setTimeout(() => endRound(), 100);
+                            return;
+                        }
 
                         // If in challenge phase and cards just arrived, show modal for all players (but only first guesser can select)
                         const modal = document.getElementById('categoryModal');
@@ -2400,6 +2407,16 @@
         }
 
         function updateLockedOutState() {
+            // V4.75: During roundEnd phase, NEVER show lockout overlay
+            if (gameState.phase === 'roundEnd') {
+                const overlay = document.getElementById('lockedOutOverlay');
+                const gameScreen = document.getElementById('gameScreen');
+                if (overlay) overlay.classList.remove('active');
+                if (gameScreen) gameScreen.classList.remove('locked-out');
+                console.log('🔓 Round end phase - lockout disabled for all players');
+                return;
+            }
+
             // CRITICAL: Check modal state FIRST before anything else
             const modal = document.getElementById('categoryModal');
             const isModalActive = modal && modal.classList.contains('active');
@@ -2840,6 +2857,15 @@
             const allPassed = newPassedPlayers.size === playerCount;
             console.log('   All passed?', allPassed, `(${newPassedPlayers.size} === ${getPlayerCount()})`);
 
+            // V4.75: If all passed after wrong guess, change phase to 'roundEnd' instead of calling endRound
+            if (allPassed && GameModeManager.isOnline()) {
+                console.log('🏁 All players passed (wrong guess) - changing phase to roundEnd');
+                GameModeManager.updateGameState({
+                    phase: 'roundEnd'
+                });
+                return;
+            }
+
             // Update UI and advance turn after animation
             setTimeout(() => {
                 console.log('⏰ Wrong guess timeout fired');
@@ -3226,27 +3252,38 @@
                     thisRound: player.thisRound
                 });
 
-                // When someone passes, advance turn to next non-passed player
-                // When all players pass, endRound() will handle round transition
-
-                if (!allPassed) {
-                    // Find next non-passed player
-                    let nextPlayerIndex = gameState.currentPlayer;
-                    let attempts = 0;
-                    const maxAttempts = playerCount;
-                    do {
-                        nextPlayerIndex = (nextPlayerIndex + 1) % playerCount;
-                        attempts++;
-                        if (attempts > maxAttempts) {
-                            console.error('❌ INFINITE LOOP DETECTED in passRound!');
-                            break;
-                        }
-                    } while (gameState.passedPlayers.has(nextPlayerIndex));
-
-                    // Sync pass state AND advance turn to next active player
+                // V4.75: When all players pass, change phase to 'roundEnd' instead of calling endRound
+                // This allows both players to see the modal
+                if (allPassed) {
+                    console.log('🏁 All players passed - changing phase to roundEnd');
                     GameModeManager.updateGameState({
+                        phase: 'roundEnd',
                         passedPlayers: Array.from(gameState.passedPlayers),
                         lastToPass: gameState.lastToPass,
+                        lastAction: actionData
+                    });
+                    console.log('✅ Phase changed to roundEnd - modal will show for all players');
+                    return;
+                }
+
+                // If not all passed, advance turn to next non-passed player
+                // Find next non-passed player
+                let nextPlayerIndex = gameState.currentPlayer;
+                let attempts = 0;
+                const maxAttempts = playerCount;
+                do {
+                    nextPlayerIndex = (nextPlayerIndex + 1) % playerCount;
+                    attempts++;
+                    if (attempts > maxAttempts) {
+                        console.error('❌ INFINITE LOOP DETECTED in passRound!');
+                        break;
+                    }
+                } while (gameState.passedPlayers.has(nextPlayerIndex));
+
+                // Sync pass state AND advance turn to next active player
+                GameModeManager.updateGameState({
+                    passedPlayers: Array.from(gameState.passedPlayers),
+                    lastToPass: gameState.lastToPass,
                         lastAction: actionData,
                         currentPlayer: nextPlayerIndex
                     });
@@ -3281,18 +3318,8 @@
 
             updateGameUI();
 
-            // End round if all players passed
-            if (allPassed) {
-                // In online mode, only the last player to pass triggers endRound
-                if (GameModeManager.isOnline()) {
-                    // This player just passed and made it allPassed, so they should trigger endRound
-                    console.log('🏁 All players passed - last passer ending round');
-                    setTimeout(() => endRound(), 500);
-                } else {
-                    // Local mode: just end round
-                    setTimeout(() => endRound(), 500);
-                }
-            }
+            // V4.75: endRound is now triggered by 'roundEnd' phase change, not here
+            // The passRound logic above changes phase to 'roundEnd' when all players pass
         }
 
         function endRound() {
@@ -3383,10 +3410,12 @@
                 gameState.drawnChallengeCards = []; // Clear challenge cards so new ones will be drawn
             }
 
+            // V4.75: Change phase back to 'challenge' after round ends
             // Sync state reset to Firebase if online mode
             // NOTE: Do NOT sync drawnChallengeCards here - only first guesser draws/syncs cards in startNewRound()
             if (GameModeManager.isOnline()) {
                 GameModeManager.updateGameState({
+                    phase: 'challenge', // V4.75: Return to challenge phase
                     round: gameState.round,
                     currentChallenge: null,
                     selectedCategory: null,
