@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>4f4 V4.80 - Multiplayer</title>
+    <title>4f4 V4.81 - Multiplayer</title>
 
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
@@ -696,7 +696,7 @@
         <!-- MODE SELECTION SCREEN -->
         <div id="modeSelectionScreen" class="screen active">
             <div class="header">
-                <h1>4f4 V4.80</h1>
+                <h1>4f4 V4.81</h1>
                 <p class="subtitle">Multiplayer</p>
             </div>
 
@@ -750,7 +750,7 @@
         <!-- ONLINE SETUP SCREEN -->
         <div id="onlineSetupScreen" class="screen">
             <div class="header">
-                <h1>4f4 V4.80 - Online</h1>
+                <h1>4f4 V4.81 - Online</h1>
                 <p class="subtitle">Connect with Friends</p>
             </div>
 
@@ -936,7 +936,7 @@
             </div>
 
             <div class="header">
-                <h1>4f4 V4.80</h1>
+                <h1>4f4 V4.81</h1>
                 <p class="subtitle" id="playerNameDisplay" style="font-weight: bold; color: #667eea; margin-bottom: 5px;">Loading...</p>
                 <p class="subtitle">Round <span id="roundNumber">1</span></p>
                 <button id="toggleDataBtn" class="btn btn-secondary" style="position: absolute; top: 20px; right: 20px; padding: 8px 15px; font-size: 0.9em;" onclick="toggleDataVisibility()">
@@ -1797,16 +1797,6 @@
 
                     // drawnChallengeCards should come from Firebase in online mode
 
-                    // Detect round changes and trigger startNewRound for all players
-                    const previousRound = window.lastSyncedRound || 1;
-                    if (gameState.round > previousRound && hasStartedGame) {
-                        console.log(`🔄 Round changed: ${previousRound} → ${gameState.round}, triggering startNewRound()`);
-                        window.lastSyncedRound = gameState.round;
-                        setTimeout(() => startNewRound(), 100);
-                    } else if (!window.lastSyncedRound) {
-                        window.lastSyncedRound = gameState.round;
-                    }
-
                     console.log('🔄 Synced state:', {
                         phase: gameState.phase,
                         round: gameState.round,
@@ -1839,10 +1829,24 @@
                             return;
                         }
 
-                        // If in challenge phase and cards just arrived, show modal for all players (but only first guesser can select)
+                        // V4.81: Handle challenge phase - first guesser draws cards, others wait
                         const modal = document.getElementById('categoryModal');
                         if (gameState.phase === 'challenge' && gameState.challengeMode === 'cards') {
-                            if (gameState.drawnChallengeCards && gameState.drawnChallengeCards.length > 0 &&
+                            // If no challenge selected and no cards drawn, first guesser should draw cards
+                            if (!gameState.currentChallenge && (!gameState.drawnChallengeCards || gameState.drawnChallengeCards.length === 0)) {
+                                const playerIds = window.playerIds || [];
+                                const firstGuesserId = playerIds[gameState.firstGuesser];
+                                const isFirstGuesser = firstGuesserId === window.currentUserId;
+
+                                if (isFirstGuesser && !window.drawingCards) {
+                                    console.log('🎴 First guesser drawing new challenge cards for round', gameState.round);
+                                    window.drawingCards = true;
+                                    setTimeout(() => {
+                                        startNewRound();
+                                        window.drawingCards = false;
+                                    }, 100);
+                                }
+                            } else if (gameState.drawnChallengeCards && gameState.drawnChallengeCards.length > 0 &&
                                 !gameState.currentChallenge) {
                                 // Cards are ready, no challenge selected yet - show modal for all players
                                 if (modal && !modal.classList.contains('active')) {
@@ -3425,10 +3429,14 @@
                     currentPlayer: gameState.firstGuesser // Reset to first guesser for new round
                     // drawnChallengeCards intentionally NOT synced here - first guesser will draw and sync new cards
                 });
-            }
 
-            // Start next round (will trigger category selection)
-            startNewRound();
+                // V4.81: In online mode, do NOT call startNewRound here
+                // Let the first guesser handle it - the Firebase listener will trigger it
+                console.log('✅ Round state synced to Firebase - first guesser will start new round');
+            } else {
+                // LOCAL MODE ONLY: Start next round directly
+                startNewRound();
+            }
         }
 
         // ===== GAME END =====

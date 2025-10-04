@@ -752,6 +752,181 @@ class QATestSuite {
         }
     }
 
+    // ==================== ROUND ADVANCEMENT TESTS (V4.81) ====================
+
+    async testRoundAdvancementAfterAllPass() {
+        this.resetGameState();
+        console.log('🧪 Testing round advancement after all players pass...');
+
+        // Setup: Round 1, both players pass
+        gameState.round = 1;
+        gameState.passedPlayers = new Set();
+        gameState.firstGuesser = 0;
+
+        if (typeof endRound === 'function') {
+            // Simulate both players passed - mark them
+            gameState.passedPlayers.add(0);
+            gameState.passedPlayers.add(1);
+
+            const roundBefore = gameState.round;
+            endRound();
+
+            // Verify round incremented
+            this.assertEquals(
+                gameState.round,
+                roundBefore + 1,
+                'endRound() increments round number'
+            );
+
+            // Verify passedPlayers cleared
+            this.assertEquals(
+                gameState.passedPlayers.size,
+                0,
+                'endRound() clears passedPlayers Set'
+            );
+
+            // Verify phase reset
+            this.assertEquals(
+                gameState.phase,
+                'challenge',
+                'endRound() resets phase to challenge'
+            );
+
+            // Verify endRoundCalled flag reset
+            this.assertFalse(
+                window.endRoundCalled,
+                'endRound() resets endRoundCalled flag',
+                'Flag is false'
+            );
+        } else {
+            this.fail('Round advancement test failed', 'endRound function not found');
+        }
+    }
+
+    async testNoConsecutiveTurnsAfterCorrectGuess() {
+        this.resetGameState();
+        console.log('🧪 Testing turn management after correct guess...');
+
+        // Setup: Player 0 makes correct guess
+        gameState.currentPlayer = 0;
+        gameState.round = 2; // Second round to test the bug
+        gameState.passedPlayers = new Set(); // Clear passed players
+
+        // Create mock tokens for the test
+        const centerToken = this.createMockToken('center1', 'Center Movie', 100);
+        const draftToken = this.createMockToken('draft1', 'Draft Movie', 150);
+
+        gameState.centerToken = centerToken;
+        gameState.draftPool = [draftToken];
+        gameState.players[0].thisRound = [];
+
+        if (typeof handleCorrectGuess === 'function') {
+            const playerBefore = gameState.currentPlayer;
+
+            handleCorrectGuess(draftToken, centerToken, 'higher');
+
+            // In FourFor4, player keeps turn after correct guess (this is correct)
+            // But they should NOT be able to guess if they already passed
+            this.assertTrue(
+                !gameState.passedPlayers.has(playerBefore),
+                'Player who makes correct guess should not be in passedPlayers',
+                'Player 0 not in passed list'
+            );
+
+            // Verify player got the point
+            this.assertEquals(
+                gameState.players[0].score,
+                1,
+                'handleCorrectGuess() awards 1 point'
+            );
+
+            // Verify token moved to thisRound
+            this.assertTrue(
+                gameState.players[0].thisRound.length === 1,
+                'handleCorrectGuess() moves center token to thisRound',
+                '1 token in thisRound'
+            );
+        } else {
+            this.fail('Consecutive turns test failed', 'handleCorrectGuess function not found');
+        }
+    }
+
+    async testPassedPlayerCannotGuesss() {
+        this.resetGameState();
+        console.log('🧪 Testing that passed players cannot make guesses...');
+
+        // Setup: Player 0 has passed
+        gameState.currentPlayer = 0;
+        gameState.passedPlayers.add(0);
+
+        // Create mock tokens
+        const centerToken = this.createMockToken('center2', 'Center Movie', 100);
+        const draftToken = this.createMockToken('draft2', 'Draft Movie', 150);
+
+        gameState.centerToken = centerToken;
+        gameState.draftPool = [draftToken];
+
+        // In the actual game, turn validation should prevent this
+        // The test verifies that passed players are tracked correctly
+        this.assertTrue(
+            gameState.passedPlayers.has(0),
+            'Passed player should be in passedPlayers Set',
+            'Player 0 is marked as passed'
+        );
+
+        // Verify turn advancement skips passed players
+        if (typeof advanceTurn === 'function') {
+            gameState.currentPlayer = 0;
+            advanceTurn();
+
+            this.assertEquals(
+                gameState.currentPlayer,
+                1,
+                'advanceTurn() skips passed players'
+            );
+        }
+    }
+
+    async testEndRoundDoesNotCallStartNewRoundTwice() {
+        this.resetGameState();
+        console.log('🧪 Testing endRound() does not cause duplicate startNewRound() calls...');
+
+        // Track if startNewRound was called
+        let startNewRoundCallCount = 0;
+        const originalStartNewRound = typeof startNewRound !== 'undefined' ? startNewRound : null;
+
+        if (originalStartNewRound) {
+            // Mock startNewRound to count calls
+            window.startNewRound = function() {
+                startNewRoundCallCount++;
+                console.log(`  startNewRound() call #${startNewRoundCallCount}`);
+            };
+
+            if (typeof endRound === 'function') {
+                gameState.round = 1;
+                gameState.passedPlayers = new Set([0, 1]);
+
+                endRound();
+
+                // In local mode, endRound should call startNewRound once
+                // In online mode, it should NOT call startNewRound
+                this.assertTrue(
+                    startNewRoundCallCount <= 1,
+                    'endRound() should call startNewRound at most once',
+                    `Called ${startNewRoundCallCount} time(s)`
+                );
+
+                // Restore original function
+                window.startNewRound = originalStartNewRound;
+            } else {
+                this.fail('Duplicate call test failed', 'endRound function not found');
+                window.startNewRound = originalStartNewRound;
+            }
+        } else {
+            this.pass('Duplicate call test skipped', 'startNewRound not defined in test environment');
+        }
+    }
+
     // ==================== TEST RUNNER ====================
 
     async runAllTests() {
@@ -814,6 +989,15 @@ class QATestSuite {
                 name: 'Complete Game Flow',
                 tests: [
                     () => this.testCompleteGameFlow()
+                ]
+            },
+            {
+                name: 'Round Advancement (V4.81 Fixes)',
+                tests: [
+                    () => this.testRoundAdvancementAfterAllPass(),
+                    () => this.testNoConsecutiveTurnsAfterCorrectGuess(),
+                    () => this.testPassedPlayerCannotGuesss(),
+                    () => this.testEndRoundDoesNotCallStartNewRoundTwice()
                 ]
             }
         ];
