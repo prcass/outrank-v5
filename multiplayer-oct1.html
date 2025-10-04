@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>4f4 V4.28 - Multiplayer</title>
+    <title>Outrank V4 - Multiplayer Edition</title>
 
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
@@ -483,48 +483,6 @@
             }
         }
 
-        @keyframes slideDown {
-            from {
-                transform: translateY(-100%);
-                opacity: 0;
-            }
-            to {
-                transform: translateY(0);
-                opacity: 1;
-            }
-        }
-
-        @keyframes slideUp {
-            from {
-                transform: translateY(0);
-                opacity: 1;
-            }
-            to {
-                transform: translateY(-100%);
-                opacity: 0;
-            }
-        }
-
-        @keyframes opponentHighlight {
-            0% {
-                box-shadow: 0 0 0 0 rgba(79, 172, 254, 0.7);
-                transform: scale(1);
-            }
-            50% {
-                box-shadow: 0 0 20px 10px rgba(79, 172, 254, 0.3);
-                transform: scale(1.05);
-            }
-            100% {
-                box-shadow: 0 0 0 0 rgba(79, 172, 254, 0);
-                transform: scale(1);
-            }
-        }
-
-        .opponent-action-highlight {
-            animation: opponentHighlight 1s ease-in-out 2;
-            border: 3px solid #4facfe !important;
-        }
-
         @keyframes celebrate {
             0%, 100% { transform: rotate(0deg) scale(1); }
             25% { transform: rotate(-10deg) scale(1.1); }
@@ -646,8 +604,8 @@
         <!-- MODE SELECTION SCREEN -->
         <div id="modeSelectionScreen" class="screen active">
             <div class="header">
-                <h1>4f4 V4.28</h1>
-                <p class="subtitle">Multiplayer</p>
+                <h1>Outrank V4</h1>
+                <p class="subtitle">Multiplayer Edition</p>
             </div>
 
             <div class="setup-content">
@@ -661,7 +619,7 @@
                     </div>
                 </button>
 
-                <button class="btn btn-primary" onclick="window.open('multiplayer.html?mode=online&v=11', '_blank')"
+                <button class="btn btn-primary" onclick="selectGameMode('online')"
                         style="width: 100%; margin: 15px 0; padding: 25px; font-size: 18px;">
                     🌐 Online Multiplayer
                     <div style="font-size: 14px; margin-top: 8px; opacity: 0.9; font-weight: normal;">
@@ -692,7 +650,7 @@
         <!-- ONLINE SETUP SCREEN -->
         <div id="onlineSetupScreen" class="screen">
             <div class="header">
-                <h1>4f4 V4.28 - Online</h1>
+                <h1>Outrank V4 - Online</h1>
                 <p class="subtitle">Connect with Friends</p>
             </div>
 
@@ -870,7 +828,7 @@
         <!-- GAME SCREEN -->
         <div id="gameScreen" class="screen">
             <div class="header">
-                <h1>4f4 V4.28</h1>
+                <h1>Outrank V4</h1>
                 <p class="subtitle">Round <span id="roundNumber">1</span></p>
                 <button id="toggleDataBtn" class="btn btn-secondary" style="position: absolute; top: 20px; right: 20px; padding: 8px 15px; font-size: 0.9em;" onclick="toggleDataVisibility()">
                     👁️ Hide Data
@@ -1244,39 +1202,6 @@
             { category: 'companies', stat: 'regulatory_compliance', name: 'Regulatory Compliance', direction: 'higher' }
         ];
 
-        // ===== HELPER FUNCTIONS =====
-
-        // Get players as array (works for both local array and online object)
-        function getPlayersArray() {
-            if (GameModeManager.isLocal()) {
-                return gameState.players; // Already an array
-            } else {
-                // Online mode: convert object to array using window.playerIds for correct order
-                const playerIds = window.playerIds || Object.keys(gameState.players || {});
-                return playerIds.map(id => gameState.players[id]);
-            }
-        }
-
-        // Get player by index (works for both modes)
-        function getPlayerByIndex(index) {
-            if (GameModeManager.isLocal()) {
-                return gameState.players[index];
-            } else {
-                const playerIds = window.playerIds || Object.keys(gameState.players || {});
-                const playerId = playerIds[index];
-                return gameState.players[playerId];
-            }
-        }
-
-        // Get player count (works for both modes)
-        function getPlayerCount() {
-            if (GameModeManager.isLocal()) {
-                return gameState.players?.length || 0;
-            } else {
-                return Object.keys(gameState.players || {}).length;
-            }
-        }
-
         // ===== INITIALIZATION =====
         function initializeGame() {
             // Check if external dataset loaded
@@ -1305,14 +1230,6 @@
 
             // Set up player input fields
             updatePlayerInputs();
-
-            // Check URL parameters for auto-mode selection
-            const urlParams = new URLSearchParams(window.location.search);
-            const modeParam = urlParams.get('mode');
-            if (modeParam === 'online') {
-                // Auto-select online mode when opened from button
-                selectGameMode('online');
-            }
         }
 
         function updatePlayerInputs() {
@@ -1374,11 +1291,11 @@
         }
 
         async function createNewGame() {
-            let playerName = document.getElementById('playerName').value.trim();
+            const playerName = document.getElementById('playerName').value.trim();
 
-            // Default to "Player 1" if no name entered
             if (!playerName) {
-                playerName = 'Player 1';
+                alert('Please enter your name');
+                return;
             }
 
             try {
@@ -1397,22 +1314,17 @@
         }
 
         async function joinExistingGame() {
+            const playerName = document.getElementById('playerName').value.trim();
             const roomCode = document.getElementById('roomCode').value.trim().toUpperCase();
+
+            if (!playerName) {
+                alert('Please enter your name');
+                return;
+            }
 
             if (!roomCode || roomCode.length !== 6) {
                 alert('Please enter a valid 6-character room code');
                 return;
-            }
-
-            // Get player count in room to assign default name
-            const database = GameModeManager.database;
-            const playersSnapshot = await database.ref('games/' + roomCode + '/players').once('value');
-            const players = playersSnapshot.val() || {};
-            const playerCount = Object.keys(players).length;
-
-            let playerName = document.getElementById('playerName').value.trim();
-            if (!playerName) {
-                playerName = `Player ${playerCount + 1}`;
             }
 
             try {
@@ -1430,19 +1342,9 @@
             }
         }
 
-        function copyRoomCode(code) {
-            navigator.clipboard.writeText(code).then(() => {
-                showNotification(`Room code ${code} copied to clipboard!`, 'success');
-            }).catch(err => {
-                console.error('Failed to copy:', err);
-                showNotification('Failed to copy code', 'error');
-            });
-        }
-
         function initializeLobby(roomCode, isHost) {
-            // Display room code with copy button
-            const lobbyCodeEl = document.getElementById('lobbyRoomCode');
-            lobbyCodeEl.innerHTML = `Room: <strong>${roomCode}</strong> <button onclick="copyRoomCode('${roomCode}')" style="margin-left: 10px; padding: 5px 10px; cursor: pointer;">📋 Copy</button>`;
+            // Display room code
+            document.getElementById('lobbyRoomCode').textContent = `Room: ${roomCode}`;
 
             // Show/hide host controls
             const hostControls = document.getElementById('hostControls');
@@ -1559,23 +1461,7 @@
             const maxRounds = parseInt(document.getElementById('maxRounds').value);
 
             const database = GameModeManager.database;
-            const gameRef = database.ref('games/' + roomCode);
-            const gameStateRef = gameRef.child('gameState');
-            const playersRef = gameRef.child('players');
-
-            // Initialize player game data
-            const playersSnapshot = await playersRef.once('value');
-            const players = playersSnapshot.val() || {};
-
-            for (const playerId in players) {
-                await playersRef.child(playerId).update({
-                    score: 0,
-                    hand: [],
-                    thisRound: [],
-                    correctGuesses: 0,
-                    wrongGuesses: 0
-                });
-            }
+            const gameStateRef = database.ref('games/' + roomCode + '/gameState');
 
             // Update game state to start
             await gameStateRef.update({
@@ -1626,92 +1512,20 @@
                     const fbPlayers = gameData.players || {};
                     const fbGameState = gameData.gameState || {};
 
-                    // Store player IDs for reference (order matters for currentPlayer index)
+                    // Store player IDs for reference
                     window.playerIds = Object.keys(fbPlayers);
 
-                    // Keep players as object keyed by Firebase UID (NOT array)
-                    gameState.players = fbPlayers;
+                    // Convert Firebase player object to array for V4 compatibility
+                    gameState.players = window.playerIds.map(id => fbPlayers[id]);
 
-                    // Copy game state fields (preserve categoryPools - they're not in Firebase)
-                    const categoryPools = gameState.categoryPools; // Save pools
-
-                    // Track changes for visual feedback
-                    const oldCenterToken = gameState.centerToken?.name;
-                    const oldCurrentPlayer = gameState.currentPlayer;
-
-                    // Debug: Log what Firebase is sending
-                    if (fbGameState.centerToken) {
-                        console.log('📥 Firebase sync - centerToken:', fbGameState.centerToken?.name);
-                        console.log('📥 Firebase sync - draftPool size:', fbGameState.draftPool?.length || Object.keys(fbGameState.draftPool || {}).length);
-                    }
-
+                    // Copy game state fields
                     Object.assign(gameState, fbGameState);
-                    gameState.categoryPools = categoryPools; // Restore pools
-                    gameState.players = fbPlayers; // Restore players object (don't let fbGameState overwrite)
-
-                    // Detect opponent actions and show detailed feedback
-                    if (GameModeManager.isOnline() && !GameModeManager.isMyTurn() && fbGameState.lastAction) {
-                        const action = fbGameState.lastAction;
-
-                        // Only show if this is a recent action (within last 5 seconds)
-                        if (Date.now() - action.timestamp < 5000) {
-                            if (action.type === 'correct_guess') {
-                                const arrow = action.direction === 'higher' ? '⬆️' : '⬇️';
-                                showOpponentAction(
-                                    `${action.playerName} guessed ${arrow} ${action.direction.toUpperCase()} with "${action.draftedToken}" - CORRECT! +1 point`,
-                                    'success',
-                                    8000  // Show for 8 seconds
-                                );
-                                // Highlight the drafted token briefly before it becomes center
-                                const draftedEl = Array.from(document.querySelectorAll('.draft-token')).find(
-                                    el => el.textContent.includes(action.draftedToken)
-                                );
-                                if (draftedEl) {
-                                    highlightToken(draftedEl.id || 'draftToken-' + action.timestamp);
-                                }
-                                setTimeout(() => highlightToken('centerToken'), 500);
-                            } else if (action.type === 'wrong_guess') {
-                                const arrow = action.direction === 'higher' ? '⬆️' : '⬇️';
-                                const tokensMsg = action.tokensLost > 0 ? ` Lost ${action.tokensLost} token(s)!` : '';
-                                showOpponentAction(
-                                    `${action.playerName} guessed ${arrow} ${action.direction.toUpperCase()} with "${action.draftedToken}" - WRONG!${tokensMsg} Player is OUT`,
-                                    'warning',
-                                    8000  // Show for 8 seconds
-                                );
-                                highlightToken('centerToken');
-                            } else if (action.type === 'cash_out') {
-                                showOpponentAction(
-                                    `${action.playerName} cashed out ${action.tokenCount} tokens (${action.tag}) for ${action.points} points! 💰`,
-                                    'success',
-                                    8000  // Show for 8 seconds
-                                );
-                            }
-                        }
-                    }
-
-                    // Update turn indicator (persistent, not a banner)
-                    updateTurnIndicator();
-
-                    // Convert Firebase objects back to arrays
-                    if (gameState.draftPool && !Array.isArray(gameState.draftPool)) {
-                        gameState.draftPool = Object.values(gameState.draftPool);
-                    }
-                    if (gameState.drawnChallengeCards && !Array.isArray(gameState.drawnChallengeCards)) {
-                        gameState.drawnChallengeCards = Object.values(gameState.drawnChallengeCards);
-                    }
-                    if (gameState.passedPlayers && !Array.isArray(gameState.passedPlayers)) {
-                        gameState.passedPlayers = new Set(Object.values(gameState.passedPlayers));
-                    } else if (Array.isArray(gameState.passedPlayers)) {
-                        gameState.passedPlayers = new Set(gameState.passedPlayers);
-                    }
-
-                    // drawnChallengeCards should come from Firebase in online mode
 
                     console.log('🔄 Synced state:', {
                         phase: gameState.phase,
                         round: gameState.round,
                         currentPlayer: gameState.currentPlayer,
-                        playerCount: getPlayerCount(),
+                        playerCount: gameState.players.length,
                         hasStartedGame: hasStartedGame,
                         challengeMode: gameState.challengeMode
                     });
@@ -1729,23 +1543,6 @@
                         // Continuous UI updates during gameplay
                         console.log('♻️ Continuous UI update');
                         updateGameUI();
-
-                        // If in challenge phase and cards just arrived, show modal (only if challenge not yet selected)
-                        const modal = document.getElementById('categoryModal');
-                        if (gameState.phase === 'challenge' && gameState.challengeMode === 'cards') {
-                            if (gameState.drawnChallengeCards && gameState.drawnChallengeCards.length > 0 &&
-                                !gameState.currentChallenge) {
-                                // Cards are ready, no challenge selected yet - show modal
-                                if (modal && !modal.classList.contains('active')) {
-                                    showCategorySelectionModal();
-                                }
-                            } else if (gameState.currentChallenge) {
-                                // Challenge has been selected - close modal
-                                if (modal && modal.classList.contains('active')) {
-                                    modal.classList.remove('active');
-                                }
-                            }
-                        }
                     } else {
                         console.log('⏸️ Waiting... phase:', gameState.phase, 'hasStarted:', hasStartedGame);
                     }
@@ -1792,17 +1589,17 @@
 
         function startNewRound() {
             // Open category selection modal for first guesser
-            const firstGuesserName = getPlayerByIndex(gameState.firstGuesser)?.name || 'Player';
+            const firstGuesserName = gameState.players[gameState.firstGuesser]?.name || 'Player';
             const firstGuesserElem = document.getElementById('firstGuesserName');
             if (firstGuesserElem) {
                 firstGuesserElem.textContent = firstGuesserName;
             }
 
             // In online mode, only the first guesser draws cards (others receive via sync)
-            // Use window.playerIds which has actual Firebase user IDs, not gameState.players indices
-            const playerIds = window.playerIds || Object.keys(gameState.players || {});
-            const firstGuesserId = playerIds[gameState.firstGuesser];
-            const isFirstGuesser = GameModeManager.isLocal() || (firstGuesserId === window.currentUserId);
+            const isFirstGuesser = GameModeManager.isLocal() ||
+                                   (window.playerIds && window.playerIds[gameState.firstGuesser] === window.currentUserId);
+
+            console.log('🎲 startNewRound - isFirstGuesser:', isFirstGuesser, 'mode:', GameModeManager.getMode());
 
             // If in 'cards' mode, manage challenge cards
             if (gameState.challengeMode === 'cards' && isFirstGuesser) {
@@ -1872,17 +1669,15 @@
                     drawnChallengeCards: gameState.drawnChallengeCards
                 }).then(() => {
                     console.log('✅ Synced challenge cards to Firebase');
-                }).catch(err => {
-                    console.error('❌ Failed to sync cards:', err);
                 });
             }
+        }
 
-            // Show modal for everyone (placed outside the drawing if block but inside startNewRound)
-            // If cards were drawn by first guesser, they're now synced
-            // If not first guesser, wait for sync to populate cards
-            if (gameState.challengeMode === 'cards') {
-                showCategorySelectionModal();
-            }
+        // Show modal for everyone (placed outside the if block)
+        // If cards were drawn by first guesser, they're now synced
+        // If not first guesser, wait for sync to populate cards
+        if (gameState.challengeMode === 'cards') {
+            showCategorySelectionModal();
         }
 
         function showCategorySelectionModal() {
@@ -1968,7 +1763,7 @@
                 // Show manual selection UI (existing)
                 modalContent.innerHTML = `
                     <h2>Select Category & Challenge</h2>
-                    <p style="margin-bottom: 20px;"><strong id="firstGuesserName">${getPlayerByIndex(gameState.firstGuesser).name}</strong>, choose a category and challenge for this round:</p>
+                    <p style="margin-bottom: 20px;"><strong id="firstGuesserName">${gameState.players[gameState.firstGuesser].name}</strong>, choose a category and challenge for this round:</p>
 
                     <div class="form-group">
                         <label>Category:</label>
@@ -1999,16 +1794,10 @@
         }
 
         async function selectChallengeCard(cardIndex) {
-            // Turn validation for online mode - check if this player is the first guesser
-            if (GameModeManager.isOnline()) {
-                const playerIds = window.playerIds || [];
-                const firstGuesserId = playerIds[gameState.firstGuesser];
-                const isFirstGuesser = firstGuesserId === window.currentUserId;
-
-                if (!isFirstGuesser) {
-                    showNotification("Wait for your turn! Only the first guesser can select the challenge card.", 'warning');
-                    return;
-                }
+            // Turn validation for online mode
+            if (GameModeManager.isOnline() && !GameModeManager.isMyTurn()) {
+                showNotification("Wait for your turn!", 'warning');
+                return;
             }
 
             const cardData = gameState.drawnChallengeCards[cardIndex];
@@ -2159,7 +1948,7 @@
 
             // Count tokens in player hands and thisRound
             if (Array.isArray(gameState.players)) {
-                getPlayersArray().forEach(player => {
+                gameState.players.forEach(player => {
                     if (player && Array.isArray(player.hand)) {
                         player.hand.forEach(token => {
                             if (token && token.id && pool.some(t => t.id === token.id)) {
@@ -2300,15 +2089,14 @@
             const statField = gameState.currentChallenge.stat;
 
             container.innerHTML = pool.map(token => {
-                const statValue = token.stats?.[statField];
-                const tags = token.tags || [];
+                const statValue = token.stats[statField];
                 return `
                     <div class="token ${gameState.selectedDraftToken?.id === token.id ? 'selected' : ''}"
                          onclick="selectDraftToken('${token.id}')">
                         <div class="token-name">${token.name}</div>
                         <div class="token-value">${formatNumber(statValue)}</div>
                         <div class="token-tags">
-                            ${tags.map(tag => `<span class="token-tag">${tag}</span>`).join('')}
+                            ${token.tags.map(tag => `<span class="token-tag">${tag}</span>`).join('')}
                         </div>
                     </div>
                 `;
@@ -2318,8 +2106,7 @@
         function renderPlayers() {
             const container = document.getElementById('playersList');
 
-            const playersArray = getPlayersArray();
-            container.innerHTML = playersArray.map((player, index) => {
+            container.innerHTML = gameState.players.map((player, index) => {
                 const isCurrent = index === gameState.currentPlayer;
                 const isFirstGuesser = index === gameState.firstGuesser;
                 const hasPassed = gameState.passedPlayers.has(index);
@@ -2346,9 +2133,9 @@
                             ${isLastStanding ? '<span class="last-standing-marker" title="Last Standing">🏆</span>' : ''}
                             ${hasPassed ? '<span style="color: #999;"> (Out)</span>' : ''}
                         </div>
-                        <div class="player-score">${player.score || 0} pts</div>
+                        <div class="player-score">${player.score} pts</div>
                         <div class="player-stats">
-                            Hand: ${player.hand?.length || 0} | This Round: ${player.thisRound?.length || 0}
+                            Hand: ${player.hand.length} | This Round: ${player.thisRound.length}
                         </div>
                         ${tagDisplay ? `<div class="player-tags" style="font-size: 11px; margin-top: 5px; line-height: 1.4;">${tagDisplay}</div>` : ''}
                     </div>
@@ -2357,26 +2144,20 @@
         }
 
         function getPlayerTagCounts(player) {
-            // Firebase stores arrays as objects - convert to arrays
-            const hand = Array.isArray(player.hand) ? player.hand : Object.values(player.hand || {});
-            const thisRound = Array.isArray(player.thisRound) ? player.thisRound : Object.values(player.thisRound || {});
-            const allTokens = [...hand, ...thisRound];
+            const allTokens = [...player.hand, ...player.thisRound];
             const tagCounts = {};
 
             allTokens.forEach(token => {
-                if (token && token.tags) {
-                    const tags = Array.isArray(token.tags) ? token.tags : Object.values(token.tags || {});
-                    tags.forEach(tag => {
-                        tagCounts[tag] = (tagCounts[tag] || 0) + 1;
-                    });
-                }
+                token.tags.forEach(tag => {
+                    tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+                });
             });
 
             return tagCounts;
         }
 
         function updateActionButtons() {
-            const player = getPlayerByIndex(gameState.currentPlayer);
+            const player = gameState.players[gameState.currentPlayer];
 
             // Cash out button enabled if player has sets
             document.getElementById('cashOutBtn').disabled = !canCashOut(player);
@@ -2400,18 +2181,7 @@
         }
 
         function makeGuess(direction) {
-            console.log('🎯 makeGuess called:', direction, 'selectedToken:', gameState.selectedDraftToken?.name);
-
-            // Turn validation for online mode
-            if (GameModeManager.isOnline() && !GameModeManager.isMyTurn()) {
-                showNotification("Wait for your turn!", 'warning');
-                return;
-            }
-
-            if (!gameState.selectedDraftToken) {
-                showNotification("Please select a token from the draft pool first!", 'warning');
-                return;
-            }
+            if (!gameState.selectedDraftToken) return;
 
             const drafted = gameState.selectedDraftToken;
             const center = gameState.centerToken;
@@ -2428,38 +2198,25 @@
             }
 
             if (isCorrect) {
-                handleCorrectGuess(drafted, center, direction);
+                handleCorrectGuess(drafted, center);
             } else {
-                handleWrongGuess(drafted, direction);
+                handleWrongGuess(drafted);
             }
         }
 
-        function handleCorrectGuess(drafted, center, direction) {
-            const player = GameModeManager.getCurrentPlayer();
+        function handleCorrectGuess(drafted, center) {
+            const player = gameState.players[gameState.currentPlayer];
 
             // Award 1 point
             player.score += 1;
             player.correctGuesses += 1;
 
-            // Collect center token to "this round" pile (Firebase stores arrays as objects)
-            if (!Array.isArray(player.thisRound)) {
-                player.thisRound = Object.values(player.thisRound || {});
-            }
+            // Collect center token to "this round" pile
             player.thisRound.push(center);
 
-            // Calculate new state
-            const newCenterToken = drafted;
-            const newDraftPool = gameState.draftPool.filter(t => t.id !== drafted.id);
-
-            // Create action metadata for opponent feedback
-            const actionData = {
-                type: 'correct_guess',
-                playerName: player.name,
-                draftedToken: drafted.name,
-                oldCenterToken: center.name,
-                direction: direction,
-                timestamp: Date.now()
-            };
+            // Drafted token becomes new center
+            gameState.centerToken = drafted;
+            gameState.draftPool = gameState.draftPool.filter(t => t.id !== drafted.id);
 
             // Show success animation on center token
             const centerEl = document.getElementById('centerToken');
@@ -2473,44 +2230,11 @@
             showNotification(`✅ Correct! ${player.name} earns 1 point!`, 'success');
 
             // Clear selection
-            const newSelectedDraftToken = null;
+            gameState.selectedDraftToken = null;
+            document.getElementById('guessArea').classList.remove('active');
 
             // Check if all other players are out (round should end)
-            const playerCount = GameModeManager.isLocal() ? getPlayerCount() : Object.keys(gameState.players).length;
-            const allOthersPassed = gameState.passedPlayers.size === playerCount - 1;
-
-            // Handle state update based on mode
-            if (GameModeManager.isOnline()) {
-                // ONLINE MODE: Only send to Firebase, DO NOT update local state
-                // The Firebase sync listener will update our local state
-                const playerIds = Object.keys(gameState.players);
-                const currentPlayerId = playerIds[gameState.currentPlayer];
-
-                console.log('🔄 Syncing correct guess to Firebase:');
-                console.log('  New center token:', newCenterToken.name);
-                console.log('  Draft pool size:', newDraftPool.length);
-
-                GameModeManager.updatePlayer(currentPlayerId, {
-                    score: player.score,
-                    correctGuesses: player.correctGuesses,
-                    thisRound: player.thisRound
-                });
-
-                GameModeManager.updateGameState({
-                    centerToken: newCenterToken,
-                    draftPool: newDraftPool,
-                    selectedDraftToken: newSelectedDraftToken,
-                    lastAction: actionData
-                });
-
-                console.log('✅ Firebase update sent - waiting for sync');
-            } else {
-                // LOCAL MODE: Update state directly
-                gameState.centerToken = newCenterToken;
-                gameState.draftPool = newDraftPool;
-                gameState.selectedDraftToken = newSelectedDraftToken;
-                document.getElementById('guessArea').classList.remove('active');
-            }
+            const allOthersPassed = gameState.passedPlayers.size === gameState.players.length - 1;
 
             // Update UI and advance turn after animation
             setTimeout(() => {
@@ -2525,8 +2249,8 @@
             }, 400);
         }
 
-        function handleWrongGuess(drafted, direction) {
-            const player = GameModeManager.getCurrentPlayer();
+        function handleWrongGuess(drafted) {
+            const player = gameState.players[gameState.currentPlayer];
 
             // Show failure animation on center token
             const centerEl = document.getElementById('centerToken');
@@ -2535,57 +2259,40 @@
                 centerEl.classList.remove('animate-wrong-flash', 'animate-shake');
             }, 800);
 
-            // Calculate new state
-            const thisRoundArray = Array.isArray(player.thisRound) ? player.thisRound : Object.values(player.thisRound || {});
-            const newDraftPool = [...gameState.draftPool, ...thisRoundArray];
+            // Return all "this round" tokens to draft pool
+            gameState.draftPool.push(...player.thisRound);
             player.thisRound = [];
 
-            // Create action metadata for opponent feedback
-            const actionData = {
-                type: 'wrong_guess',
-                playerName: player.name,
-                draftedToken: drafted.name,
-                centerToken: gameState.centerToken.name,
-                direction: direction,
-                tokensLost: thisRoundArray.length,
-                timestamp: Date.now()
-            };
+            // Return drafted token to pool
+            // (it's already in pool, just not removed)
+
+            // Player keeps points
 
             // Player becomes first guesser next round (if no one else is first yet)
             const becomesFirstGuesser = gameState.passedPlayers.size === 0;
-            const newFirstGuesser = becomesFirstGuesser ? gameState.currentPlayer : gameState.firstGuesser;
+            if (becomesFirstGuesser) {
+                gameState.firstGuesser = gameState.currentPlayer;
+            }
 
             // Mark player as OUT for this round (they can't draft again)
-            const newPassedPlayers = new Set(gameState.passedPlayers);
-            newPassedPlayers.add(gameState.currentPlayer);
+            gameState.passedPlayers.add(gameState.currentPlayer);
 
             console.log('❌ Wrong guess by', player.name);
-            const playerCount = GameModeManager.isLocal() ? getPlayerCount() : Object.keys(gameState.players).length;
-            console.log('   Passed players now:', newPassedPlayers.size, '/', playerCount);
+            console.log('   Passed players now:', gameState.passedPlayers.size, '/', gameState.players.length);
 
             // Check if this leaves only 1 player standing
-            const nonPassedCount = playerCount - newPassedPlayers.size;
+            const nonPassedCount = gameState.players.length - gameState.passedPlayers.size;
             const isLastStanding = nonPassedCount === 1;
 
             console.log('   Non-passed count:', nonPassedCount);
             console.log('   Is last standing?', isLastStanding);
 
             // Award last standing trophy when only 1 player remains active
-            let newLastToPass = gameState.lastToPass || 0;
             if (isLastStanding) {
-                if (GameModeManager.isLocal()) {
-                    const lastStandingIndex = getPlayersArray().findIndex((p, idx) => !newPassedPlayers.has(idx));
-                    if (lastStandingIndex !== -1) {
-                        newLastToPass = lastStandingIndex;
-                        console.log('   🏆 Last standing trophy awarded to:', gameState.players[lastStandingIndex].name);
-                    }
-                } else {
-                    const playerIds = Object.keys(gameState.players);
-                    const lastStandingIndex = playerIds.findIndex((id, idx) => !newPassedPlayers.has(idx));
-                    if (lastStandingIndex !== -1) {
-                        newLastToPass = lastStandingIndex;
-                        console.log('   🏆 Last standing trophy awarded to:', gameState.players[playerIds[lastStandingIndex]].name);
-                    }
+                const lastStandingIndex = gameState.players.findIndex((p, idx) => !gameState.passedPlayers.has(idx));
+                if (lastStandingIndex !== -1) {
+                    gameState.lastToPass = lastStandingIndex;
+                    console.log('   🏆 Last standing trophy awarded to:', gameState.players[lastStandingIndex].name);
                 }
             }
 
@@ -2593,43 +2300,13 @@
             const nextRoundMsg = becomesFirstGuesser ? ' Will go first next round!' : '';
             showNotification(`❌ Wrong! ${player.name} loses tokens but keeps ${player.score} points. OUT for this round.${nextRoundMsg}`, 'error');
 
-            // Handle state update based on mode
-            if (GameModeManager.isOnline()) {
-                // ONLINE MODE: Only send to Firebase, DO NOT update local state
-                const playerIds = Object.keys(gameState.players);
-                const currentPlayerId = playerIds[gameState.currentPlayer];
-
-                // Only send defined values to Firebase
-                const playerUpdates = {
-                    thisRound: player.thisRound || []
-                };
-                if (player.wrongGuesses !== undefined) playerUpdates.wrongGuesses = player.wrongGuesses;
-                if (player.hand !== undefined) playerUpdates.hand = player.hand;
-
-                GameModeManager.updatePlayer(currentPlayerId, playerUpdates);
-                GameModeManager.updateGameState({
-                    draftPool: newDraftPool,
-                    passedPlayers: Array.from(newPassedPlayers),
-                    firstGuesser: newFirstGuesser,
-                    lastToPass: newLastToPass,
-                    selectedDraftToken: null,
-                    lastAction: actionData
-                });
-
-                console.log('✅ Firebase update sent - waiting for sync');
-            } else {
-                // LOCAL MODE: Update state directly
-                gameState.draftPool = newDraftPool;
-                gameState.passedPlayers = newPassedPlayers;
-                gameState.firstGuesser = newFirstGuesser;
-                gameState.lastToPass = newLastToPass;
-                gameState.selectedDraftToken = null;
-                document.getElementById('guessArea').classList.remove('active');
-            }
+            // Clear selection
+            gameState.selectedDraftToken = null;
+            document.getElementById('guessArea').classList.remove('active');
 
             // Check if all players are now out (round should end)
-            const allPassed = newPassedPlayers.size === playerCount;
-            console.log('   All passed?', allPassed, `(${newPassedPlayers.size} === ${getPlayerCount()})`);
+            const allPassed = gameState.passedPlayers.size === gameState.players.length;
+            console.log('   All passed?', allPassed, `(${gameState.passedPlayers.size} === ${gameState.players.length})`);
 
             // Update UI and advance turn after animation
             setTimeout(() => {
@@ -2646,10 +2323,10 @@
         }
 
         function advanceTurn() {
-            console.log('🔄 advanceTurn called. Passed players:', gameState.passedPlayers.size, '/', getPlayerCount());
+            console.log('🔄 advanceTurn called. Passed players:', gameState.passedPlayers.size, '/', gameState.players.length);
 
             // Check if all passed FIRST (before trying to advance)
-            if (gameState.passedPlayers.size === getPlayerCount()) {
+            if (gameState.passedPlayers.size === gameState.players.length) {
                 console.log('✅ All players passed. Ending round...');
                 endRound();
                 return;
@@ -2658,25 +2335,18 @@
             // Move to next non-passed player
             let attempts = 0;
             do {
-                gameState.currentPlayer = (gameState.currentPlayer + 1) % getPlayerCount();
+                gameState.currentPlayer = (gameState.currentPlayer + 1) % gameState.players.length;
                 attempts++;
 
                 // Safety check: prevent infinite loop
-                if (attempts > getPlayerCount()) {
+                if (attempts > gameState.players.length) {
                     console.error('❌ INFINITE LOOP DETECTED in advanceTurn!');
                     endRound();
                     return;
                 }
             } while (gameState.passedPlayers.has(gameState.currentPlayer));
 
-            console.log('👤 Next player:', getPlayerByIndex(gameState.currentPlayer).name);
-
-            // Sync to Firebase if online mode
-            if (GameModeManager.isOnline()) {
-                GameModeManager.updateGameState({
-                    currentPlayer: gameState.currentPlayer
-                });
-            }
+            console.log('👤 Next player:', gameState.players[gameState.currentPlayer].name);
 
             // Update UI
             updateGameUI();
@@ -2684,19 +2354,13 @@
 
         // ===== CASH OUT =====
         function canCashOut(player) {
-            // Firebase stores arrays as objects - convert to arrays
-            const hand = Array.isArray(player.hand) ? player.hand : Object.values(player.hand || {});
-            const thisRound = Array.isArray(player.thisRound) ? player.thisRound : Object.values(player.thisRound || {});
-            const allTokens = [...hand, ...thisRound];
+            const allTokens = [...player.hand, ...player.thisRound];
             const tagCounts = {};
 
             allTokens.forEach(token => {
-                if (token && token.tags) {
-                    const tags = Array.isArray(token.tags) ? token.tags : Object.values(token.tags || {});
-                    tags.forEach(tag => {
-                        tagCounts[tag] = (tagCounts[tag] || 0) + 1;
-                    });
-                }
+                token.tags.forEach(tag => {
+                    tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+                });
             });
 
             // Check if any tag has 2+ tokens
@@ -2704,12 +2368,8 @@
         }
 
         function openCashOutModal() {
-            const player = getPlayerByIndex(gameState.currentPlayer);
-
-            // Convert to arrays if Firebase sent objects
-            const hand = Array.isArray(player.hand) ? player.hand : Object.values(player.hand || {});
-            const thisRound = Array.isArray(player.thisRound) ? player.thisRound : Object.values(player.thisRound || {});
-            const allTokens = [...hand, ...thisRound];
+            const player = gameState.players[gameState.currentPlayer];
+            const allTokens = [...player.hand, ...player.thisRound];
 
             if (allTokens.length === 0) {
                 showNotification('No tokens to cash out!', 'warning');
@@ -2793,7 +2453,7 @@
         }
 
         function executeCashOut() {
-            const player = getPlayerByIndex(gameState.currentPlayer);
+            const player = gameState.players[gameState.currentPlayer];
 
             // Get selected tokens
             const selectedBtns = document.querySelectorAll('.cash-token-btn.selected');
@@ -2813,9 +2473,7 @@
             const tags = Array.from(selectedBtns).map(btn => btn.dataset.tag);
 
             // Check if all selected tokens share at least ONE common tag
-            const hand = Array.isArray(player.hand) ? player.hand : Object.values(player.hand || {});
-            const thisRound = Array.isArray(player.thisRound) ? player.thisRound : Object.values(player.thisRound || {});
-            const allTokens = [...hand, ...thisRound];
+            const allTokens = [...player.hand, ...player.thisRound];
             const selectedTokenObjects = selectedTokenIds.map(id => allTokens.find(t => t.id === id));
 
             // Find common tags across all selected tokens
@@ -2845,14 +2503,6 @@
             else if (count === 4) points = 8;
 
             // Find and remove tokens from player's hand/thisRound
-            // Convert to arrays if needed (Firebase sends objects)
-            if (!Array.isArray(player.hand)) {
-                player.hand = Object.values(player.hand || {});
-            }
-            if (!Array.isArray(player.thisRound)) {
-                player.thisRound = Object.values(player.thisRound || {});
-            }
-
             const tokensToRemove = [];
             selectedTokenIds.forEach(tokenId => {
                 const fromHand = player.hand.findIndex(t => t.id === tokenId);
@@ -2873,17 +2523,6 @@
             player.score += points;
             player.cashOuts++;
 
-            // Create action metadata for opponent feedback
-            const actionData = {
-                type: 'cash_out',
-                playerName: player.name,
-                tokenCount: count,
-                points: points,
-                tag: selectedTag,
-                tokensUsed: tokensToRemove.map(t => t.name),
-                timestamp: Date.now()
-            };
-
             // Close modal first
             closeCashOutModal();
 
@@ -2901,46 +2540,16 @@
             // Show success notification
             showNotification(`💰 ${player.name} cashed out ${count} tokens for ${points} points!`, 'success');
 
-            // Calculate next player
-            const playerCount = GameModeManager.isLocal() ? getPlayerCount() : Object.keys(gameState.players).length;
-            const nextPlayer = (gameState.currentPlayer + 1) % playerCount;
-
-            // Sync to Firebase if online mode
-            if (GameModeManager.isOnline()) {
-                const playerIds = Object.keys(gameState.players);
-                const currentPlayerId = playerIds[gameState.currentPlayer];
-
-                // Update player data
-                GameModeManager.updatePlayer(currentPlayerId, {
-                    score: player.score,
-                    cashOuts: player.cashOuts,
-                    hand: player.hand,
-                    thisRound: player.thisRound
-                });
-
-                // Update game state including advancing turn
-                GameModeManager.updateGameState({
-                    retiredTokens: gameState.retiredTokens,
-                    lastAction: actionData,
-                    currentPlayer: nextPlayer  // Advance turn in Firebase
-                });
-
-                console.log('✅ Cash out synced to Firebase with turn advancement');
-            } else {
-                // LOCAL MODE: Update state directly
-                gameState.retiredTokens = [...gameState.retiredTokens, ...tokensToRemove];
-                gameState.currentPlayer = nextPlayer;
-            }
-
-            // Update UI after animation
+            // Update UI and end turn after animation
             setTimeout(() => {
                 updateGameUI();
+                advanceTurn();
             }, 400);
         }
 
         // ===== PASS =====
         function passRound() {
-            const player = getPlayerByIndex(gameState.currentPlayer);
+            const player = gameState.players[gameState.currentPlayer];
 
             // Move "this round" to hand
             player.hand.push(...player.thisRound);
@@ -2950,7 +2559,7 @@
             gameState.passedPlayers.add(gameState.currentPlayer);
 
             // Check if this player is now the last one standing (only 1 non-passed player remains)
-            const nonPassedCount = getPlayerCount() - gameState.passedPlayers.size;
+            const nonPassedCount = gameState.players.length - gameState.passedPlayers.size;
             const isLastStanding = nonPassedCount === 1;
 
             // First to pass becomes first guesser next round
@@ -2964,7 +2573,7 @@
             // Award last standing trophy when only 1 player remains active
             if (isLastStanding) {
                 // Find the last remaining player (not passed)
-                const lastStandingIndex = getPlayersArray().findIndex((p, idx) => !gameState.passedPlayers.has(idx));
+                const lastStandingIndex = gameState.players.findIndex((p, idx) => !gameState.passedPlayers.has(idx));
                 if (lastStandingIndex !== -1) {
                     gameState.lastToPass = lastStandingIndex;
                     updateGameUI(); // Update to show trophy immediately
@@ -2977,14 +2586,14 @@
 
         function endRound() {
             // Move all "thisRound" tokens to player hands (make them safe)
-            getPlayersArray().forEach(player => {
+            gameState.players.forEach(player => {
                 player.hand.push(...player.thisRound);
                 player.thisRound = [];
             });
 
             // Award "last standing" bonus (+1 point to last person to pass)
             if (gameState.lastToPass !== undefined) {
-                getPlayerByIndex(gameState.lastToPass).score += 1;
+                gameState.players[gameState.lastToPass].score += 1;
 
                 // Show celebration animation
                 const playerPanels = document.querySelectorAll('.player-info');
@@ -2997,7 +2606,7 @@
                     showFloatingPoints('+1 🏆', panel);
                 }
 
-                showNotification(`🏆 ${getPlayerByIndex(gameState.lastToPass).name} was last standing! +1 point bonus`, 'success');
+                showNotification(`🏆 ${gameState.players[gameState.lastToPass].name} was last standing! +1 point bonus`, 'success');
             }
 
             // Return draft pool + center token to category pool (they stay in their category)
@@ -3067,7 +2676,7 @@
                             <span style="font-size: 24px; min-width: 40px;">${medal}</span>
                             <div>
                                 <div style="font-weight: bold; font-size: 18px; color: #764ba2;">${player.name}</div>
-                                <div style="font-size: 12px; color: #666;">Tokens in hand: ${player.hand?.length || 0}</div>
+                                <div style="font-size: 12px; color: #666;">Tokens in hand: ${player.hand.length}</div>
                             </div>
                         </div>
                         <div style="font-size: 28px; font-weight: bold; color: #764ba2;">${player.score} pts</div>
@@ -3081,10 +2690,10 @@
                 <div style="margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid #eee;">
                     <h3 style="color: #764ba2; margin-bottom: 10px;">${player.name}</h3>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 14px;">
-                        <div>✅ Correct Guesses: <strong>${player.correctGuesses || 0}</strong></div>
-                        <div>💰 Cash Outs: <strong>${player.cashOuts || 0}</strong></div>
-                        <div>🃏 Tokens in Hand: <strong>${player.hand?.length || 0}</strong></div>
-                        <div>🎯 Final Score: <strong>${player.score || 0} pts</strong></div>
+                        <div>✅ Correct Guesses: <strong>${player.correctGuesses}</strong></div>
+                        <div>💰 Cash Outs: <strong>${player.cashOuts}</strong></div>
+                        <div>🃏 Tokens in Hand: <strong>${player.hand.length}</strong></div>
+                        <div>🎯 Final Score: <strong>${player.score} pts</strong></div>
                     </div>
                 </div>
             `).join('');
@@ -3126,93 +2735,7 @@
             setTimeout(() => floater.remove(), 1000);
         }
 
-        function showOpponentAction(message, type = 'info', duration = 4000) {
-            // Create persistent banner at top of screen
-            let banner = document.getElementById('opponentActionBanner');
-            if (!banner) {
-                banner = document.createElement('div');
-                banner.id = 'opponentActionBanner';
-                banner.style.cssText = `
-                    position: fixed;
-                    top: 0;
-                    left: 0;
-                    right: 0;
-                    padding: 15px;
-                    text-align: center;
-                    font-weight: bold;
-                    z-index: 10000;
-                    animation: slideDown 0.3s ease-out;
-                `;
-                document.body.appendChild(banner);
-            }
-
-            // Set color based on type
-            const colors = {
-                success: 'background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white;',
-                info: 'background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;',
-                warning: 'background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white;'
-            };
-
-            banner.style.cssText += colors[type] || colors.info;
-            banner.textContent = message;
-
-            // Clear any existing timeout
-            if (banner.hideTimeout) clearTimeout(banner.hideTimeout);
-
-            // Auto-hide after specified duration
-            banner.hideTimeout = setTimeout(() => {
-                banner.style.animation = 'slideUp 0.3s ease-in';
-                setTimeout(() => banner.remove(), 300);
-            }, duration);
-        }
-
-        function updateTurnIndicator() {
-            // Create or update a persistent turn indicator in the header
-            let indicator = document.getElementById('turnIndicator');
-            if (!indicator) {
-                indicator = document.createElement('div');
-                indicator.id = 'turnIndicator';
-                indicator.style.cssText = `
-                    position: fixed;
-                    top: 60px;
-                    right: 20px;
-                    padding: 10px 20px;
-                    border-radius: 25px;
-                    font-weight: bold;
-                    font-size: 14px;
-                    z-index: 9999;
-                    transition: all 0.3s ease;
-                `;
-                document.body.appendChild(indicator);
-            }
-
-            if (GameModeManager.isOnline()) {
-                if (GameModeManager.isMyTurn()) {
-                    indicator.textContent = '🎯 YOUR TURN';
-                    indicator.style.cssText += 'background: linear-gradient(135deg, #34d399 0%, #10b981 100%); color: white; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);';
-                    indicator.style.display = 'block';
-                } else {
-                    indicator.textContent = '⏳ Waiting...';
-                    indicator.style.cssText += 'background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%); color: white; box-shadow: 0 4px 15px rgba(245, 158, 11, 0.4);';
-                    indicator.style.display = 'block';
-                }
-            } else {
-                indicator.style.display = 'none';
-            }
-        }
-
-        function highlightToken(tokenElementId) {
-            const element = document.getElementById(tokenElementId);
-            if (element) {
-                element.classList.add('opponent-action-highlight');
-                setTimeout(() => {
-                    element.classList.remove('opponent-action-highlight');
-                }, 2000);
-            }
-        }
-
         function formatNumber(num) {
-            if (num === undefined || num === null) return 'N/A';
             if (num >= 1000000000) {
                 return (num / 1000000000).toFixed(2) + 'B';
             } else if (num >= 1000000) {
