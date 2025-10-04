@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FourFor4 QA Test Runner</title>
+    <style>
+        body {
+            font-family: monospace;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+        }
+        .results {
+            white-space: pre-wrap;
+            background: #252526;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+        .pass { color: #4ec9b0; }
+        .fail { color: #f48771; }
+        .info { color: #569cd6; }
+    </style>
+</head>
+<body>
+    <h1>🧪 FourFor4 Integration QA Test Runner</h1>
+    <button onclick="runTests()" style="padding: 10px 20px; font-size: 16px; cursor: pointer;">▶️ Run All Tests</button>
+    <div id="results" class="results"></div>
+
+    <script src="v4_token_datasets.js"></script>
+    <script src="game-mode-manager.js"></script>
+    <script src="qa-tests.js"></script>
+
+    <!-- Minimal game functions for testing -->
+    <script>
+        // Load the actual game to get all functions
+        const iframe = document.createElement('iframe');
+        iframe.src = 'multiplayer.html';
+        iframe.style.display = 'none';
+        document.body.appendChild(iframe);
+
+        async function runTests() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<span class="info">⏳ Loading game functions...</span>\n';
+
+            // Wait for iframe to load
+            await new Promise(resolve => {
+                iframe.onload = resolve;
+            });
+
+            // Copy functions from iframe to this window
+            const iframeWindow = iframe.contentWindow;
+            window.gameState = iframeWindow.gameState;
+            window.passRound = iframeWindow.passRound;
+            window.handleCorrectGuess = iframeWindow.handleCorrectGuess;
+            window.executeCashOut = iframeWindow.executeCashOut;
+            window.advanceTurn = iframeWindow.advanceTurn;
+            window.endRound = iframeWindow.endRound;
+            window.getPlayerByIndex = iframeWindow.getPlayerByIndex;
+            window.getPlayerCount = iframeWindow.getPlayerCount;
+            window.getPlayersArray = iframeWindow.getPlayersArray;
+            window.showNotification = function() {}; // Stub
+            window.showFloatingPoints = function() {}; // Stub
+            window.updateGameUI = function() {}; // Stub
+
+            resultsDiv.innerHTML += '<span class="info">✅ Game functions loaded</span>\n\n';
+
+            // Intercept console.log and console.error
+            const originalLog = console.log;
+            const originalError = console.error;
+
+            console.log = (...args) => {
+                const text = args.join(' ');
+                resultsDiv.innerHTML += `<span class="${text.includes('✅') ? 'pass' : 'info'}">${text}</span>\n`;
+                originalLog(...args);
+            };
+
+            console.error = (...args) => {
+                const text = args.join(' ');
+                resultsDiv.innerHTML += `<span class="fail">${text}</span>\n`;
+                originalError(...args);
+            };
+
+            // Run tests
+            try {
+                const results = await runQATests();
+
+                // Summary
+                resultsDiv.innerHTML += `\n<span class="info">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>\n`;
+                if (results.successRate === 100) {
+                    resultsDiv.innerHTML += `<span class="pass">🎉 ALL TESTS PASSED! (${results.passed}/${results.total})</span>\n`;
+                } else {
+                    resultsDiv.innerHTML += `<span class="fail">⚠️ SOME TESTS FAILED (${results.passed}/${results.total} passed)</span>\n`;
+                }
+            } catch (error) {
+                resultsDiv.innerHTML += `<span class="fail">❌ ERROR: ${error.message}</span>\n`;
+                resultsDiv.innerHTML += `<span class="fail">${error.stack}</span>\n`;
+            }
+
+            // Restore console
+            console.log = originalLog;
+            console.error = originalError;
+        }
+    </script>
+</body>
+</html>

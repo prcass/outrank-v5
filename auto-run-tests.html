@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auto QA Runner</title>
+    <style>
+        body {
+            font-family: monospace;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            white-space: pre-wrap;
+        }
+        .pass { color: #4ec9b0; }
+        .fail { color: #f48771; }
+        .info { color: #569cd6; }
+    </style>
+</head>
+<body id="output">Loading...</body>
+
+<script src="v4_token_datasets.js"></script>
+<script src="firebase-config.js"></script>
+<script src="game-mode-manager.js"></script>
+<script src="room-manager.js"></script>
+
+<script>
+// Load game in iframe
+const iframe = document.createElement('iframe');
+iframe.src = 'multiplayer.html';
+iframe.style.display = 'none';
+document.body.appendChild(iframe);
+
+iframe.onload = async () => {
+    const output = document.getElementById('output');
+    output.innerHTML = '🔧 Loading game functions...\n\n';
+
+    // Wait a bit for game to initialize
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    try {
+        const iframeWindow = iframe.contentWindow;
+
+        // Copy essential game elements
+        window.gameState = iframeWindow.gameState;
+        window.GameModeManager = iframeWindow.GameModeManager;
+        window.passRound = iframeWindow.passRound;
+        window.handleCorrectGuess = iframeWindow.handleCorrectGuess;
+        window.executeCashOut = iframeWindow.executeCashOut;
+        window.advanceTurn = iframeWindow.advanceTurn;
+        window.endRound = iframeWindow.endRound;
+        window.getPlayerByIndex = iframeWindow.getPlayerByIndex;
+        window.getPlayerCount = iframeWindow.getPlayerCount;
+        window.getPlayersArray = iframeWindow.getPlayersArray;
+
+        // Stub UI functions
+        window.showNotification = () => {};
+        window.showFloatingPoints = () => {};
+        window.updateGameUI = () => {};
+
+        output.innerHTML += '✅ Game functions loaded\n\n';
+
+        // Load QA tests
+        const script = document.createElement('script');
+        script.src = 'qa-tests.js';
+        script.onload = async () => {
+            output.innerHTML += '✅ QA tests loaded\n\n';
+
+            // Intercept console
+            const log = (msg, className = 'info') => {
+                output.innerHTML += `<span class="${className}">${msg}</span>\n`;
+            };
+
+            const originalLog = console.log;
+            const originalError = console.error;
+
+            console.log = (...args) => {
+                const text = args.join(' ');
+                const className = text.includes('✅ PASS') ? 'pass' :
+                                 text.includes('❌ FAIL') ? 'fail' : 'info';
+                log(text, className);
+                originalLog(...args);
+            };
+
+            console.error = (...args) => {
+                log(args.join(' '), 'fail');
+                originalError(...args);
+            };
+
+            // Run tests
+            try {
+                const results = await window.runQATests();
+
+                output.innerHTML += '\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n';
+
+                if (results.successRate === 100) {
+                    log(`🎉 ALL TESTS PASSED! (${results.passed}/${results.total})`, 'pass');
+                } else {
+                    log(`⚠️ TESTS INCOMPLETE: ${results.passed}/${results.total} passed (${results.successRate.toFixed(1)}%)`, 'fail');
+
+                    if (results.failed > 0) {
+                        log('\nFailed tests:', 'fail');
+                        results.results
+                            .filter(r => r.status === 'FAIL')
+                            .forEach(r => log(`  - ${r.test}: ${r.message}`, 'fail'));
+                    }
+                }
+
+                document.title = results.successRate === 100 ? '✅ All Tests Pass' : `❌ ${results.failed} Failed`;
+            } catch (error) {
+                log(`❌ ERROR: ${error.message}`, 'fail');
+                log(error.stack, 'fail');
+                document.title = '❌ Test Error';
+            }
+
+            console.log = originalLog;
+            console.error = originalError;
+        };
+
+        document.head.appendChild(script);
+    } catch (error) {
+        output.innerHTML += `❌ ERROR: ${error.message}\n${error.stack}`;
+    }
+};
+</script>
+</body>
+</html>

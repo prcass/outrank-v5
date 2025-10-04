@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>4f4 V4.39 - Multiplayer</title>
+    <title>4f4 V4.74 - Multiplayer</title>
 
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
@@ -17,6 +17,7 @@
     <script src="firebase-config.js"></script>
     <script src="game-mode-manager.js"></script>
     <script src="room-manager.js"></script>
+    <script src="qa-tests.js"></script>
     <style>
         /* ===== BASE STYLES ===== */
         * {
@@ -370,6 +371,55 @@
             max-width: 200px;
         }
 
+        /* ===== LOCKED OUT STATE ===== */
+        .locked-out-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            pointer-events: none;
+        }
+
+        .locked-out-overlay.active {
+            display: flex;
+        }
+
+        .locked-out-message {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            max-width: 400px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+
+        .locked-out-message h2 {
+            color: #f44336;
+            margin: 0 0 15px 0;
+            font-size: 28px;
+        }
+
+        .locked-out-message p {
+            color: #666;
+            margin: 0;
+            font-size: 16px;
+            line-height: 1.5;
+        }
+
+        /* Grey out game area when locked */
+        .screen.locked-out .draft-pool,
+        .screen.locked-out .guess-area,
+        .screen.locked-out .action-buttons {
+            opacity: 0.3;
+            pointer-events: none;
+        }
+
         /* ===== GUESS BUTTONS ===== */
         .guess-area {
             display: none;
@@ -646,7 +696,7 @@
         <!-- MODE SELECTION SCREEN -->
         <div id="modeSelectionScreen" class="screen active">
             <div class="header">
-                <h1>4f4 V4.39</h1>
+                <h1>4f4 V4.74</h1>
                 <p class="subtitle">Multiplayer</p>
             </div>
 
@@ -666,6 +716,14 @@
                     🌐 Online Multiplayer
                     <div style="font-size: 14px; margin-top: 8px; opacity: 0.9; font-weight: normal;">
                         Play with friends on different devices
+                    </div>
+                </button>
+
+                <button class="btn btn-secondary" onclick="runAutomatedQA()"
+                        style="width: 100%; margin: 30px 0 15px 0; padding: 20px; font-size: 16px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                    🧪 Run QA Tests
+                    <div style="font-size: 13px; margin-top: 8px; opacity: 0.9; font-weight: normal;">
+                        Automated test suite (check console)
                     </div>
                 </button>
 
@@ -692,7 +750,7 @@
         <!-- ONLINE SETUP SCREEN -->
         <div id="onlineSetupScreen" class="screen">
             <div class="header">
-                <h1>4f4 V4.39 - Online</h1>
+                <h1>4f4 V4.74 - Online</h1>
                 <p class="subtitle">Connect with Friends</p>
             </div>
 
@@ -869,8 +927,17 @@
 
         <!-- GAME SCREEN -->
         <div id="gameScreen" class="screen">
+            <!-- LOCKED OUT OVERLAY -->
+            <div id="lockedOutOverlay" class="locked-out-overlay">
+                <div class="locked-out-message">
+                    <h2>⛔ Locked Out</h2>
+                    <p>You have passed this round.<br>Wait for the next round to continue playing.</p>
+                </div>
+            </div>
+
             <div class="header">
-                <h1>4f4 V4.39</h1>
+                <h1>4f4 V4.74</h1>
+                <p class="subtitle" id="playerNameDisplay" style="font-weight: bold; color: #667eea; margin-bottom: 5px;">Loading...</p>
                 <p class="subtitle">Round <span id="roundNumber">1</span></p>
                 <button id="toggleDataBtn" class="btn btn-secondary" style="position: absolute; top: 20px; right: 20px; padding: 8px 15px; font-size: 0.9em;" onclick="toggleDataVisibility()">
                     👁️ Hide Data
@@ -1713,7 +1780,12 @@
                         gameState.drawnChallengeCards = Object.values(gameState.drawnChallengeCards);
                     }
 
-                    console.log('🔍 passedPlayers RAW from Firebase:', gameState.passedPlayers, 'type:', typeof gameState.passedPlayers, 'isArray:', Array.isArray(gameState.passedPlayers));
+                    // If challenge cards were just synced and modal should be shown (for all players, but only first guesser can select)
+                    if (gameState.drawnChallengeCards && gameState.drawnChallengeCards.length > 0 &&
+                        !gameState.currentChallenge && gameState.challengeMode === 'cards') {
+                        console.log('📥 Challenge cards synced - showing modal for all players');
+                        setTimeout(() => showCategorySelectionModal(), 100);
+                    }
 
                     if (gameState.passedPlayers && !Array.isArray(gameState.passedPlayers)) {
                         gameState.passedPlayers = new Set(Object.values(gameState.passedPlayers));
@@ -1723,9 +1795,17 @@
                         gameState.passedPlayers = new Set();
                     }
 
-                    console.log('✅ passedPlayers after conversion:', Array.from(gameState.passedPlayers));
-
                     // drawnChallengeCards should come from Firebase in online mode
+
+                    // Detect round changes and trigger startNewRound for all players
+                    const previousRound = window.lastSyncedRound || 1;
+                    if (gameState.round > previousRound && hasStartedGame) {
+                        console.log(`🔄 Round changed: ${previousRound} → ${gameState.round}, triggering startNewRound()`);
+                        window.lastSyncedRound = gameState.round;
+                        setTimeout(() => startNewRound(), 100);
+                    } else if (!window.lastSyncedRound) {
+                        window.lastSyncedRound = gameState.round;
+                    }
 
                     console.log('🔄 Synced state:', {
                         phase: gameState.phase,
@@ -1750,12 +1830,12 @@
                         console.log('♻️ Continuous UI update');
                         updateGameUI();
 
-                        // If in challenge phase and cards just arrived, show modal (only if challenge not yet selected)
+                        // If in challenge phase and cards just arrived, show modal for all players (but only first guesser can select)
                         const modal = document.getElementById('categoryModal');
                         if (gameState.phase === 'challenge' && gameState.challengeMode === 'cards') {
                             if (gameState.drawnChallengeCards && gameState.drawnChallengeCards.length > 0 &&
                                 !gameState.currentChallenge) {
-                                // Cards are ready, no challenge selected yet - show modal
+                                // Cards are ready, no challenge selected yet - show modal for all players
                                 if (modal && !modal.classList.contains('active')) {
                                     showCategorySelectionModal();
                                 }
@@ -1811,6 +1891,12 @@
         }
 
         function startNewRound() {
+            console.log(`🎲 startNewRound() called - firstGuesser index: ${gameState.firstGuesser}`);
+
+            // Reset current player to first guesser for the new round
+            gameState.currentPlayer = gameState.firstGuesser;
+            console.log(`🔄 Reset currentPlayer to firstGuesser: ${gameState.currentPlayer}`);
+
             // Open category selection modal for first guesser
             const firstGuesserName = getPlayerByIndex(gameState.firstGuesser)?.name || 'Player';
             const firstGuesserElem = document.getElementById('firstGuesserName');
@@ -1824,12 +1910,14 @@
             const firstGuesserId = playerIds[gameState.firstGuesser];
             const isFirstGuesser = GameModeManager.isLocal() || (firstGuesserId === window.currentUserId);
 
+            console.log(`👤 This player: ${window.currentUserId}, First guesser: ${firstGuesserId}, isFirstGuesser: ${isFirstGuesser}`);
+
             // If in 'cards' mode, manage challenge cards
             if (gameState.challengeMode === 'cards' && isFirstGuesser) {
                 const categories = ['movies', 'countries', 'companies', 'sports'];
 
-                // First round: draw all cards fresh
-                if (gameState.round === 1) {
+                // First round OR no category selected (both passed): draw all cards fresh
+                if (gameState.round === 1 || !gameState.selectedCategory || gameState.drawnChallengeCards.length === 0) {
                     gameState.drawnChallengeCards = [];
                     categories.forEach(category => {
                         // Filter out challenges that have been played
@@ -1887,35 +1975,37 @@
             if (categoryWarning) categoryWarning.style.display = 'none';
 
             // Sync drawn challenge cards to Firebase if online mode (only if first guesser)
+            // NOTE: currentPlayer is already set by endRound(), don't overwrite it here
             if (GameModeManager.isOnline() && isFirstGuesser) {
                 GameModeManager.updateGameState({
                     drawnChallengeCards: gameState.drawnChallengeCards
                 }).then(() => {
                     console.log('✅ Synced challenge cards to Firebase');
                 }).catch(err => {
-                    console.error('❌ Failed to sync cards:', err);
+                    console.error('❌ Failed to sync:', err);
                 });
             }
 
-            // Show modal for everyone (placed outside the drawing if block but inside startNewRound)
-            // If cards were drawn by first guesser, they're now synced
-            // If not first guesser, wait for sync to populate cards
+            // Show modal for all players (they can all see the options, but only first guesser can select)
             if (gameState.challengeMode === 'cards') {
                 showCategorySelectionModal();
             }
         }
 
         function showCategorySelectionModal() {
+            console.log('🎴 showCategorySelectionModal() called');
             const modal = document.getElementById('categoryModal');
             const modalContent = modal.querySelector('.modal-content');
 
             if (gameState.challengeMode === 'cards') {
                 // Safety check: wait for cards to be populated
                 if (!gameState.drawnChallengeCards || gameState.drawnChallengeCards.length === 0) {
-                    console.log('⏳ Waiting for challenge cards to sync...');
+                    console.log('⏳ Waiting for challenge cards to sync... (cards length: 0)');
                     // Modal will be shown when cards sync triggers updateGameUI
                     return;
                 }
+
+                console.log(`✅ Showing modal with ${gameState.drawnChallengeCards.length} challenge cards`);
 
                 // Get first guesser name safely
                 const firstGuesser = gameState.players?.[gameState.firstGuesser];
@@ -2016,6 +2106,12 @@
             }
 
             modal.classList.add('active');
+            console.log('✅ Modal active class added');
+
+            // CRITICAL: Update lockout state AFTER modal is active
+            // This ensures players who passed are unlocked to see the modal
+            updateLockedOutState();
+            console.log('✅ Called updateLockedOutState() after modal activated');
         }
 
         async function selectChallengeCard(cardIndex) {
@@ -2257,6 +2353,20 @@
                 roundNumber.textContent = `${gameState.round} / ${gameState.maxRounds}`;
             }
 
+            // Update player name display
+            const playerNameDisplay = document.getElementById('playerNameDisplay');
+            if (playerNameDisplay) {
+                if (GameModeManager.isOnline() && window.playerIds && window.currentUserId) {
+                    const myPlayerIndex = window.playerIds.indexOf(window.currentUserId);
+                    if (myPlayerIndex >= 0 && gameState.players[myPlayerIndex]) {
+                        playerNameDisplay.textContent = `Playing as: ${gameState.players[myPlayerIndex].name}`;
+                    }
+                } else if (gameState.players[gameState.currentPlayer]) {
+                    // Local mode - show current turn player
+                    playerNameDisplay.textContent = `Current Turn: ${gameState.players[gameState.currentPlayer].name}`;
+                }
+            }
+
             // Update challenge info (only if challenge selected)
             if (gameState.currentChallenge) {
                 const challengeInfo = document.getElementById('challengeInfo');
@@ -2284,11 +2394,74 @@
 
             // Update action buttons
             updateActionButtons();
+
+            // Update locked out overlay
+            updateLockedOutState();
+        }
+
+        function updateLockedOutState() {
+            // CRITICAL: Check modal state FIRST before anything else
+            const modal = document.getElementById('categoryModal');
+            const isModalActive = modal && modal.classList.contains('active');
+
+            // If modal is active, NEVER show lockout overlay (it has lower z-index)
+            if (isModalActive) {
+                const overlay = document.getElementById('lockedOutOverlay');
+                const gameScreen = document.getElementById('gameScreen');
+                if (overlay) overlay.classList.remove('active');
+                if (gameScreen) gameScreen.classList.remove('locked-out');
+                console.log('🔓 Modal active - lockout disabled');
+                return; // Exit immediately
+            }
+
+            // Check if we're in round transition (challenge cards drawn, waiting for selection)
+            const isRoundTransition = !gameState.selectedCategory && gameState.drawnChallengeCards?.length > 0;
+
+            // Get player index for logging
+            let myPlayerIndex = gameState.currentPlayer;
+            if (GameModeManager.isOnline() && window.playerIds && window.currentUserId) {
+                myPlayerIndex = window.playerIds.indexOf(window.currentUserId);
+            }
+
+            console.log(`🔍 updateLockedOutState - Player ${myPlayerIndex}: isModalActive=${isModalActive}, isRoundTransition=${isRoundTransition}, hasPassed=${gameState.passedPlayers.has(myPlayerIndex)}`);
+
+            if (isRoundTransition) {
+                // Round transition - hide lockout overlay regardless of pass state
+                const overlay = document.getElementById('lockedOutOverlay');
+                const gameScreen = document.getElementById('gameScreen');
+                if (overlay) overlay.classList.remove('active');
+                if (gameScreen) gameScreen.classList.remove('locked-out');
+                console.log(`🔓 Player ${myPlayerIndex} unlocked - round transition`);
+                return; // Exit early
+            }
+
+            const hasPassed = gameState.passedPlayers.has(myPlayerIndex);
+
+            const overlay = document.getElementById('lockedOutOverlay');
+            const gameScreen = document.getElementById('gameScreen');
+
+            if (hasPassed) {
+                // Show overlay and grey out screen
+                if (overlay) overlay.classList.add('active');
+                if (gameScreen) gameScreen.classList.add('locked-out');
+                console.log(`🔒 Player ${myPlayerIndex} locked out - showing overlay`);
+            } else {
+                // Hide overlay and restore normal state
+                if (overlay) overlay.classList.remove('active');
+                if (gameScreen) gameScreen.classList.remove('locked-out');
+            }
         }
 
         function renderCenterToken() {
             const token = gameState.centerToken;
             const container = document.getElementById('centerToken');
+
+            // Safety check - don't render if no token or challenge selected yet
+            if (!token || !gameState.currentChallenge) {
+                if (container) container.innerHTML = '';
+                return;
+            }
+
             const statField = gameState.currentChallenge.stat;
             const statValue = token.stats[statField];
 
@@ -2554,16 +2727,10 @@
                 document.getElementById('guessArea').classList.remove('active');
             }
 
-            // Update UI and advance turn after animation
+            // Update UI after animation
+            // NOTE: Do NOT advance turn - player keeps their turn after correct guess!
             setTimeout(() => {
                 updateGameUI();
-                if (allOthersPassed) {
-                    // This player is the last one standing - they should pass to end round
-                    console.log('🏆 Only this player remains active');
-                    advanceTurn();
-                } else {
-                    advanceTurn();
-                }
             }, 400);
         }
 
@@ -2677,8 +2844,12 @@
             setTimeout(() => {
                 console.log('⏰ Wrong guess timeout fired');
                 updateGameUI();
-                if (allPassed) {
-                    console.log('🔚 Last player failed - ending round immediately');
+
+                // Re-check if all players have passed (might have changed during animation)
+                const allPassedNow = gameState.passedPlayers.size === getPlayerCount();
+
+                if (allPassedNow) {
+                    console.log('🔚 All players now passed - ending round');
                     endRound();
                 } else {
                     console.log('➡️ Not all passed, calling advanceTurn');
@@ -2979,6 +3150,12 @@
 
         // ===== PASS =====
         function passRound() {
+            // Turn validation for online mode
+            if (GameModeManager.isOnline() && !GameModeManager.isMyTurn()) {
+                showNotification("Wait for your turn!", 'warning');
+                return;
+            }
+
             // Check if current player has already passed
             if (gameState.passedPlayers.has(gameState.currentPlayer)) {
                 showNotification("You have already passed this round!", 'warning');
@@ -3013,12 +3190,19 @@
                 gameState.firstGuesser = gameState.currentPlayer;
             }
 
-            // Award last standing trophy when only 1 player remains active
-            if (isLastStanding) {
-                // Find the last remaining player (not passed)
+            // Track who was last to pass (for end-of-round bonus)
+            // If this is the last player to pass (all players have now passed), they get the bonus
+            const allPassed = gameState.passedPlayers.size === playerCount;
+            if (allPassed) {
+                gameState.lastToPass = gameState.currentPlayer;
+                console.log(`🏆 Last to pass: Player ${gameState.currentPlayer} (gets +1 bonus)`);
+            } else if (isLastStanding) {
+                // Award last standing when only 1 player remains active (hasn't passed yet)
+                // This is for games with 3+ players where one player is still playing
                 const lastStandingIndex = getPlayersArray().findIndex((p, idx) => !gameState.passedPlayers.has(idx));
                 if (lastStandingIndex !== -1) {
                     gameState.lastToPass = lastStandingIndex;
+                    console.log(`🏆 Last standing: Player ${lastStandingIndex} (gets +1 bonus when round ends)`);
                 }
             }
 
@@ -3031,9 +3215,6 @@
                 timestamp: Date.now()
             };
 
-            // Check if all players have passed (round should end)
-            const allPassed = gameState.passedPlayers.size === playerCount;
-
             // Sync to Firebase if online mode
             if (GameModeManager.isOnline()) {
                 const playerIds = Object.keys(gameState.players);
@@ -3045,27 +3226,56 @@
                     thisRound: player.thisRound
                 });
 
-                // Update game state
-                const updates = {
-                    passedPlayers: Array.from(gameState.passedPlayers),
-                    firstGuesser: gameState.firstGuesser,
-                    lastToPass: gameState.lastToPass,
-                    lastAction: actionData
-                };
+                // When someone passes, advance turn to next non-passed player
+                // When all players pass, endRound() will handle round transition
 
-                // Only advance turn if not all passed (otherwise endRound will be called)
                 if (!allPassed) {
-                    const nextPlayer = (gameState.currentPlayer + 1) % playerCount;
-                    updates.currentPlayer = nextPlayer;
+                    // Find next non-passed player
+                    let nextPlayerIndex = gameState.currentPlayer;
+                    let attempts = 0;
+                    const maxAttempts = playerCount;
+                    do {
+                        nextPlayerIndex = (nextPlayerIndex + 1) % playerCount;
+                        attempts++;
+                        if (attempts > maxAttempts) {
+                            console.error('❌ INFINITE LOOP DETECTED in passRound!');
+                            break;
+                        }
+                    } while (gameState.passedPlayers.has(nextPlayerIndex));
+
+                    // Sync pass state AND advance turn to next active player
+                    GameModeManager.updateGameState({
+                        passedPlayers: Array.from(gameState.passedPlayers),
+                        lastToPass: gameState.lastToPass,
+                        lastAction: actionData,
+                        currentPlayer: nextPlayerIndex
+                    });
+                    console.log(`✅ Pass synced - turn advanced to Player ${nextPlayerIndex}`);
+                } else {
+                    // All passed - only sync pass state
+                    // endRound() will handle firstGuesser, currentPlayer, round increment, etc.
+                    GameModeManager.updateGameState({
+                        passedPlayers: Array.from(gameState.passedPlayers),
+                        lastToPass: gameState.lastToPass,
+                        lastAction: actionData
+                    });
+                    console.log('✅ Final pass synced to Firebase (endRound will handle turn reset)');
                 }
-
-                GameModeManager.updateGameState(updates);
-
-                console.log('✅ Pass synced to Firebase');
             } else {
-                // LOCAL MODE: Update state directly and advance turn if needed
+                // LOCAL MODE: Advance turn to next active player
                 if (!allPassed) {
-                    gameState.currentPlayer = (gameState.currentPlayer + 1) % playerCount;
+                    let nextPlayerIndex = gameState.currentPlayer;
+                    let attempts = 0;
+                    do {
+                        nextPlayerIndex = (nextPlayerIndex + 1) % playerCount;
+                        attempts++;
+                        if (attempts > playerCount) {
+                            console.error('❌ INFINITE LOOP DETECTED!');
+                            break;
+                        }
+                    } while (gameState.passedPlayers.has(nextPlayerIndex));
+                    gameState.currentPlayer = nextPlayerIndex;
+                    console.log(`✅ Local pass - turn advanced to Player ${nextPlayerIndex}`);
                 }
             }
 
@@ -3073,7 +3283,15 @@
 
             // End round if all players passed
             if (allPassed) {
-                setTimeout(() => endRound(), 500);
+                // In online mode, only the last player to pass triggers endRound
+                if (GameModeManager.isOnline()) {
+                    // This player just passed and made it allPassed, so they should trigger endRound
+                    console.log('🏁 All players passed - last passer ending round');
+                    setTimeout(() => endRound(), 500);
+                } else {
+                    // Local mode: just end round
+                    setTimeout(() => endRound(), 500);
+                }
             }
         }
 
@@ -3093,21 +3311,41 @@
             });
 
             // Award "last standing" bonus (+1 point to last person to pass)
-            if (gameState.lastToPass !== undefined) {
-                getPlayerByIndex(gameState.lastToPass).score += 1;
+            if (gameState.lastToPass !== undefined && gameState.lastToPass !== null) {
+                const lastPlayer = getPlayerByIndex(gameState.lastToPass);
+                if (lastPlayer) {
+                    lastPlayer.score += 1;
+                    console.log(`💰 Awarded +1 bonus to ${lastPlayer.name}, new score: ${lastPlayer.score}`);
 
-                // Show celebration animation
-                const playerPanels = document.querySelectorAll('.player-info');
-                if (playerPanels[gameState.lastToPass]) {
-                    const panel = playerPanels[gameState.lastToPass];
-                    panel.classList.add('animate-celebrate');
-                    setTimeout(() => panel.classList.remove('animate-celebrate'), 800);
+                    // Sync score to Firebase if online mode
+                    if (GameModeManager.isOnline()) {
+                        const playerIds = window.playerIds || Object.keys(gameState.players || {});
+                        const lastPlayerId = playerIds[gameState.lastToPass];
+                        GameModeManager.updatePlayer(lastPlayerId, {
+                            score: lastPlayer.score
+                        });
+                        console.log(`🔥 Synced score update to Firebase for ${lastPlayer.name}`);
+                    }
 
-                    // Floating points
-                    showFloatingPoints('+1 🏆', panel);
+                    // Show celebration animation (only in browser with DOM)
+                    const playerPanels = document.querySelectorAll('.player-info');
+                    if (playerPanels[gameState.lastToPass]) {
+                        const panel = playerPanels[gameState.lastToPass];
+                        panel.classList.add('animate-celebrate');
+                        setTimeout(() => panel.classList.remove('animate-celebrate'), 800);
+
+                        // Floating points
+                        if (typeof showFloatingPoints === 'function') {
+                            showFloatingPoints('+1 🏆', panel);
+                        }
+                    }
+
+                    if (typeof showNotification === 'function') {
+                        showNotification(`🏆 ${lastPlayer.name} was last standing! +1 point bonus`, 'success');
+                    }
+                } else {
+                    console.warn(`⚠️ lastToPass player ${gameState.lastToPass} not found - skipping bonus`);
                 }
-
-                showNotification(`🏆 ${getPlayerByIndex(gameState.lastToPass).name} was last standing! +1 point bonus`, 'success');
             }
 
             // Return draft pool + center token to category pool (they stay in their category)
@@ -3140,9 +3378,13 @@
             gameState.centerToken = null;
             gameState.draftPool = [];
             gameState.passedPlayers = new Set(); // Clear passed players for new round
-            gameState.drawnChallengeCards = []; // Clear challenge cards so new ones will be drawn
+            // NOTE: Don't clear drawnChallengeCards here in online mode - first guesser will handle it in startNewRound()
+            if (GameModeManager.isLocal()) {
+                gameState.drawnChallengeCards = []; // Clear challenge cards so new ones will be drawn
+            }
 
             // Sync state reset to Firebase if online mode
+            // NOTE: Do NOT sync drawnChallengeCards here - only first guesser draws/syncs cards in startNewRound()
             if (GameModeManager.isOnline()) {
                 GameModeManager.updateGameState({
                     round: gameState.round,
@@ -3151,7 +3393,8 @@
                     centerToken: null,
                     draftPool: [],
                     passedPlayers: [], // Clear passed players in Firebase
-                    drawnChallengeCards: [] // Clear challenge cards in Firebase
+                    currentPlayer: gameState.firstGuesser // Reset to first guesser for new round
+                    // drawnChallengeCards intentionally NOT synced here - first guesser will draw and sync new cards
                 });
             }
 
@@ -3320,14 +3563,49 @@
             }
 
             if (GameModeManager.isOnline()) {
-                if (GameModeManager.isMyTurn()) {
+                // During challenge selection: check if I'm the first guesser
+                // During guess phase: check if I'm the current player
+                let isMyAction = false;
+
+                // Check if modal is currently showing (challenge selection active)
+                const modal = document.getElementById('categoryModal');
+                const isModalActive = modal && modal.classList.contains('active');
+
+                // CRITICAL: If modal is active, ALWAYS check first guesser (not currentPlayer)
+                if (isModalActive) {
+                    // Challenge selection phase: only first guesser can select
+                    const playerIds = window.playerIds || Object.keys(gameState.players || {});
+                    const firstGuesserId = playerIds[gameState.firstGuesser];
+                    isMyAction = (firstGuesserId === window.currentUserId);
+                    console.log(`🎯 Turn indicator (MODAL ACTIVE): modal=${isModalActive}, firstGuesser=${gameState.firstGuesser}, firstGuesserId=${firstGuesserId}, currentUserId=${window.currentUserId}, isMyAction=${isMyAction}`);
+                } else if (!gameState.currentChallenge && gameState.challengeMode === 'cards') {
+                    // Challenge selection phase but modal not shown yet
+                    const playerIds = window.playerIds || Object.keys(gameState.players || {});
+                    const firstGuesserId = playerIds[gameState.firstGuesser];
+                    isMyAction = (firstGuesserId === window.currentUserId);
+                    console.log(`🎯 Turn indicator (BEFORE MODAL): firstGuesser=${gameState.firstGuesser}, firstGuesserId=${firstGuesserId}, currentUserId=${window.currentUserId}, isMyAction=${isMyAction}`);
+                } else {
+                    // Guess phase or other phases: check current player
+                    isMyAction = GameModeManager.isMyTurn();
+                    console.log(`🎯 Turn indicator (GUESS PHASE): currentPlayer=${gameState.currentPlayer}, isMyTurn=${isMyAction}`);
+                }
+
+                console.log(`🎯 Turn indicator - isMyAction=${isMyAction}, about to update UI`);
+
+                if (isMyAction) {
                     indicator.textContent = '🎯 YOUR TURN';
-                    indicator.style.cssText += 'background: linear-gradient(135deg, #34d399 0%, #10b981 100%); color: white; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);';
+                    indicator.style.background = 'linear-gradient(135deg, #34d399 0%, #10b981 100%)';
+                    indicator.style.color = 'white';
+                    indicator.style.boxShadow = '0 4px 15px rgba(16, 185, 129, 0.4)';
                     indicator.style.display = 'block';
+                    console.log(`✅ Turn indicator set to YOUR TURN (green)`);
                 } else {
                     indicator.textContent = '⏳ Waiting...';
-                    indicator.style.cssText += 'background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%); color: white; box-shadow: 0 4px 15px rgba(245, 158, 11, 0.4);';
+                    indicator.style.background = 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)';
+                    indicator.style.color = 'white';
+                    indicator.style.boxShadow = '0 4px 15px rgba(245, 158, 11, 0.4)';
                     indicator.style.display = 'block';
+                    console.log(`⏳ Turn indicator set to Waiting (yellow)`);
                 }
             } else {
                 indicator.style.display = 'none';
@@ -3365,6 +3643,23 @@
                 btn.textContent = '👁️ Hide Data';
                 showNotification('Data values visible', 'info');
             }
+        }
+
+        // ===== QA TEST RUNNER =====
+        async function runAutomatedQA() {
+            console.log('🚀 Starting automated QA tests...\n');
+
+            // Run tests
+            const results = await runQATests();
+
+            // Show alert with summary
+            const emoji = results.failed === 0 ? '✅' : '❌';
+            alert(`${emoji} QA Test Results\n\n` +
+                  `Total: ${results.total}\n` +
+                  `Passed: ${results.passed}\n` +
+                  `Failed: ${results.failed}\n` +
+                  `Success Rate: ${results.successRate.toFixed(1)}%\n\n` +
+                  `Check console for detailed results.`);
         }
 
         // ===== EVENT LISTENERS =====

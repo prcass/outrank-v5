@@ -97,6 +97,40 @@ npx http-server
 http://localhost:8000
 ```
 
+### Version Update Checklist
+
+**When updating version numbers, update ALL of the following:**
+
+1. **`multiplayer.html`** - Page title tag (line ~6):
+   ```html
+   <title>4f4 VX.XX - Multiplayer</title>
+   ```
+
+2. **`multiplayer.html`** - Mode selection header (line ~699):
+   ```html
+   <h1>4f4 VX.XX</h1>
+   ```
+
+3. **`multiplayer.html`** - Online setup header (line ~753):
+   ```html
+   <h1>4f4 VX.XX - Online</h1>
+   ```
+
+4. **`multiplayer.html`** - Game screen header (line ~939):
+   ```html
+   <h1>4f4 VX.XX</h1>
+   ```
+
+5. **`index.html`** - Version badge (line ~134):
+   ```html
+   <span class="badge">VX.XX</span>
+   ```
+
+**Quick command to verify all versions:**
+```bash
+grep -n "V4\.[0-9][0-9]" multiplayer.html index.html
+```
+
 ## 📄 License
 
 MIT License - Feel free to use and modify!
