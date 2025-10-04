@@ -1712,6 +1712,10 @@
                     if (gameState.drawnChallengeCards && !Array.isArray(gameState.drawnChallengeCards)) {
                         gameState.drawnChallengeCards = Object.values(gameState.drawnChallengeCards);
                     }
+
+                    // Debug passedPlayers before conversion
+                    console.log('🔍 passedPlayers from Firebase:', gameState.passedPlayers, 'type:', typeof gameState.passedPlayers, 'isArray:', Array.isArray(gameState.passedPlayers));
+
                     if (gameState.passedPlayers && !Array.isArray(gameState.passedPlayers)) {
                         gameState.passedPlayers = new Set(Object.values(gameState.passedPlayers));
                     } else if (Array.isArray(gameState.passedPlayers)) {
@@ -1719,6 +1723,8 @@
                     } else if (!gameState.passedPlayers) {
                         gameState.passedPlayers = new Set();
                     }
+
+                    console.log('✅ passedPlayers after conversion:', Array.from(gameState.passedPlayers));
 
                     // drawnChallengeCards should come from Firebase in online mode
 
