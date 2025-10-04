@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>4f4 V4.31 - Multiplayer</title>
+    <title>4f4 V4.32 - Multiplayer</title>
 
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
@@ -646,7 +646,7 @@
         <!-- MODE SELECTION SCREEN -->
         <div id="modeSelectionScreen" class="screen active">
             <div class="header">
-                <h1>4f4 V4.31</h1>
+                <h1>4f4 V4.32</h1>
                 <p class="subtitle">Multiplayer</p>
             </div>
 
@@ -692,7 +692,7 @@
         <!-- ONLINE SETUP SCREEN -->
         <div id="onlineSetupScreen" class="screen">
             <div class="header">
-                <h1>4f4 V4.31 - Online</h1>
+                <h1>4f4 V4.32 - Online</h1>
                 <p class="subtitle">Connect with Friends</p>
             </div>
 
@@ -870,7 +870,7 @@
         <!-- GAME SCREEN -->
         <div id="gameScreen" class="screen">
             <div class="header">
-                <h1>4f4 V4.31</h1>
+                <h1>4f4 V4.32</h1>
                 <p class="subtitle">Round <span id="roundNumber">1</span></p>
                 <button id="toggleDataBtn" class="btn btn-secondary" style="position: absolute; top: 20px; right: 20px; padding: 8px 15px; font-size: 0.9em;" onclick="toggleDataVisibility()">
                     👁️ Hide Data
@@ -1672,12 +1672,12 @@
                             // Other actions only show for opponents
                             else if (!GameModeManager.isMyTurn()) {
                                 if (action.type === 'correct_guess') {
-                                    // Different colored backgrounds for higher vs lower
+                                    // Dark blue banner with green ball for higher, red ball for lower
+                                    const ball = action.direction === 'higher' ? '🟢' : '🔴';
                                     const arrow = action.direction === 'higher' ? '⬆️' : '⬇️';
-                                    const colorType = action.direction === 'higher' ? 'success_green' : 'error';
                                     showOpponentAction(
-                                        `${action.playerName} guessed ${arrow} ${action.direction.toUpperCase()} with "${action.draftedToken}" - CORRECT! +1 point`,
-                                        colorType,
+                                        `${ball} ${action.playerName} guessed ${arrow} ${action.direction.toUpperCase()} with "${action.draftedToken}" - CORRECT! +1 point`,
+                                        'success_blue',
                                         8000  // Show for 8 seconds
                                     );
                                     // Highlight the drafted token briefly before it becomes center
@@ -3218,8 +3218,9 @@
 
             // Set color based on type
             const colors = {
-                success_green: 'background: linear-gradient(135deg, #34d399 0%, #10b981 100%); color: white;',  // Green for cash out & correct higher
-                error: 'background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white;',          // Red for wrong guesses & correct lower
+                success_green: 'background: linear-gradient(135deg, #34d399 0%, #10b981 100%); color: white;',  // Green for cash out
+                success_blue: 'background: linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%); color: white;',   // Darker blue for correct guesses
+                error: 'background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white;',          // Red for wrong guesses
                 warning: 'background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%); color: white;',        // Yellow for pass
                 info: 'background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;'            // Purple fallback
             };
