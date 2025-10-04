@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>4f4 V4.29 - Multiplayer</title>
+    <title>4f4 V4.30 - Multiplayer</title>
 
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
@@ -646,7 +646,7 @@
         <!-- MODE SELECTION SCREEN -->
         <div id="modeSelectionScreen" class="screen active">
             <div class="header">
-                <h1>4f4 V4.29</h1>
+                <h1>4f4 V4.30</h1>
                 <p class="subtitle">Multiplayer</p>
             </div>
 
@@ -692,7 +692,7 @@
         <!-- ONLINE SETUP SCREEN -->
         <div id="onlineSetupScreen" class="screen">
             <div class="header">
-                <h1>4f4 V4.29 - Online</h1>
+                <h1>4f4 V4.30 - Online</h1>
                 <p class="subtitle">Connect with Friends</p>
             </div>
 
@@ -870,7 +870,7 @@
         <!-- GAME SCREEN -->
         <div id="gameScreen" class="screen">
             <div class="header">
-                <h1>4f4 V4.29</h1>
+                <h1>4f4 V4.30</h1>
                 <p class="subtitle">Round <span id="roundNumber">1</span></p>
                 <button id="toggleDataBtn" class="btn btn-secondary" style="position: absolute; top: 20px; right: 20px; padding: 8px 15px; font-size: 0.9em;" onclick="toggleDataVisibility()">
                     👁️ Hide Data
@@ -1659,7 +1659,7 @@
                             if (action.type === 'cash_out') {
                                 showOpponentAction(
                                     `${action.playerName} cashed out ${action.tokenCount} tokens (${action.tag}) for ${action.points} points! 💰`,
-                                    'success',
+                                    'success_green',
                                     8000  // Show for 8 seconds
                                 );
                             } else if (action.type === 'pass') {
@@ -1667,15 +1667,16 @@
                                 if (action.isFirstToPass) {
                                     message = `${action.playerName} passed FIRST. Will go first next round!`;
                                 }
-                                showOpponentAction(message, 'info', 8000);
+                                showOpponentAction(message, 'warning', 8000);
                             }
                             // Other actions only show for opponents
                             else if (!GameModeManager.isMyTurn()) {
                                 if (action.type === 'correct_guess') {
-                                    const arrow = action.direction === 'higher' ? '⬆️' : '⬇️';
+                                    // Green arrow for higher, red arrow for lower on blue background
+                                    const arrow = action.direction === 'higher' ? '🟢⬆️' : '🔴⬇️';
                                     showOpponentAction(
                                         `${action.playerName} guessed ${arrow} ${action.direction.toUpperCase()} with "${action.draftedToken}" - CORRECT! +1 point`,
-                                        'success',
+                                        'success_blue',
                                         8000  // Show for 8 seconds
                                     );
                                     // Highlight the drafted token briefly before it becomes center
@@ -1691,7 +1692,7 @@
                                     const tokensMsg = action.tokensLost > 0 ? ` Lost ${action.tokensLost} token(s)!` : '';
                                     showOpponentAction(
                                         `${action.playerName} guessed ${arrow} ${action.direction.toUpperCase()} with "${action.draftedToken}" - WRONG!${tokensMsg} Player is OUT`,
-                                        'warning',
+                                        'error',
                                         8000  // Show for 8 seconds
                                     );
                                     highlightToken('centerToken');
@@ -2989,8 +2990,8 @@
                 timestamp: Date.now()
             };
 
-            // Calculate next player
-            const nextPlayer = (gameState.currentPlayer + 1) % playerCount;
+            // Check if all players have passed (round should end)
+            const allPassed = gameState.passedPlayers.size === playerCount;
 
             // Sync to Firebase if online mode
             if (GameModeManager.isOnline()) {
@@ -3003,22 +3004,36 @@
                     thisRound: player.thisRound
                 });
 
-                // Update game state including turn advancement
-                GameModeManager.updateGameState({
+                // Update game state
+                const updates = {
                     passedPlayers: Array.from(gameState.passedPlayers),
                     firstGuesser: gameState.firstGuesser,
                     lastToPass: gameState.lastToPass,
-                    lastAction: actionData,
-                    currentPlayer: nextPlayer
-                });
+                    lastAction: actionData
+                };
 
-                console.log('✅ Pass synced to Firebase with turn advancement');
+                // Only advance turn if not all passed (otherwise endRound will be called)
+                if (!allPassed) {
+                    const nextPlayer = (gameState.currentPlayer + 1) % playerCount;
+                    updates.currentPlayer = nextPlayer;
+                }
+
+                GameModeManager.updateGameState(updates);
+
+                console.log('✅ Pass synced to Firebase');
             } else {
-                // LOCAL MODE: Update state directly
-                gameState.currentPlayer = nextPlayer;
+                // LOCAL MODE: Update state directly and advance turn if needed
+                if (!allPassed) {
+                    gameState.currentPlayer = (gameState.currentPlayer + 1) % playerCount;
+                }
             }
 
             updateGameUI();
+
+            // End round if all players passed
+            if (allPassed) {
+                setTimeout(() => endRound(), 500);
+            }
         }
 
         function endRound() {
@@ -3194,9 +3209,11 @@
 
             // Set color based on type
             const colors = {
-                success: 'background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white;',
-                info: 'background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;',
-                warning: 'background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white;'
+                success_green: 'background: linear-gradient(135deg, #34d399 0%, #10b981 100%); color: white;',  // Green for cash out
+                success_blue: 'background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white;',   // Blue for correct guesses
+                error: 'background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white;',          // Red for wrong guesses
+                warning: 'background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%); color: white;',        // Yellow for pass
+                info: 'background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;'            // Purple fallback
             };
 
             banner.style.cssText += colors[type] || colors.info;
