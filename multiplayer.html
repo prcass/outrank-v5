@@ -1831,8 +1831,10 @@
                         updateGameUI();
 
                         // V4.75: Handle 'roundEnd' phase - show modal to both players, then endRound
-                        if (gameState.phase === 'roundEnd') {
+                        // Use a flag to prevent calling endRound multiple times
+                        if (gameState.phase === 'roundEnd' && !window.endRoundCalled) {
                             console.log('🏁 Round end phase detected - calling endRound()');
+                            window.endRoundCalled = true;
                             setTimeout(() => endRound(), 100);
                             return;
                         }
@@ -3401,6 +3403,9 @@
             }
 
             // V4.75: Change phase back to 'challenge' after round ends
+            // Reset the endRound flag so it can be called again next round
+            window.endRoundCalled = false;
+
             // Sync state reset to Firebase if online mode
             // NOTE: Do NOT sync drawnChallengeCards here - only first guesser draws/syncs cards in startNewRound()
             if (GameModeManager.isOnline()) {
