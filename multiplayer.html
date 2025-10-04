@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>4f4 V4.82 - Multiplayer</title>
+    <title>4f4 V4.93 - Multiplayer</title>
 
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
@@ -696,7 +696,7 @@
         <!-- MODE SELECTION SCREEN -->
         <div id="modeSelectionScreen" class="screen active">
             <div class="header">
-                <h1>4f4 V4.82</h1>
+                <h1>4f4 V4.93</h1>
                 <p class="subtitle">Multiplayer</p>
             </div>
 
@@ -711,7 +711,7 @@
                     </div>
                 </button>
 
-                <button class="btn btn-primary" onclick="window.open('multiplayer.html?mode=online&v=11', '_blank')"
+                <button class="btn btn-primary" onclick="window.open('multiplayer.html?mode=online&v=13', '_blank')"
                         style="width: 100%; margin: 15px 0; padding: 25px; font-size: 18px;">
                     🌐 Online Multiplayer
                     <div style="font-size: 14px; margin-top: 8px; opacity: 0.9; font-weight: normal;">
@@ -750,7 +750,7 @@
         <!-- ONLINE SETUP SCREEN -->
         <div id="onlineSetupScreen" class="screen">
             <div class="header">
-                <h1>4f4 V4.82 - Online</h1>
+                <h1>4f4 V4.92 - Online</h1>
                 <p class="subtitle">Connect with Friends</p>
             </div>
 
@@ -936,7 +936,7 @@
             </div>
 
             <div class="header">
-                <h1>4f4 V4.82</h1>
+                <h1>4f4 V4.93</h1>
                 <p class="subtitle" id="playerNameDisplay" style="font-weight: bold; color: #667eea; margin-bottom: 5px;">Loading...</p>
                 <p class="subtitle">Round <span id="roundNumber">1</span></p>
                 <button id="toggleDataBtn" class="btn btn-secondary" style="position: absolute; top: 20px; right: 20px; padding: 8px 15px; font-size: 0.9em;" onclick="toggleDataVisibility()">
@@ -1780,11 +1780,32 @@
                         gameState.drawnChallengeCards = Object.values(gameState.drawnChallengeCards);
                     }
 
-                    // If challenge cards were just synced and modal should be shown (for all players, but only first guesser can select)
-                    if (gameState.drawnChallengeCards && gameState.drawnChallengeCards.length > 0 &&
-                        !gameState.currentChallenge && gameState.challengeMode === 'cards') {
-                        console.log('📥 Challenge cards synced - showing modal for all players');
+                    // V4.93: Use explicit showModal flag from Firebase
+                    const shouldShowModal = gameState.showModal === true;
+                    const isCardsMode = gameState.challengeMode === 'cards';
+                    const hasCards = gameState.drawnChallengeCards?.length > 0;
+                    const modal = document.getElementById('categoryModal');
+                    const isModalCurrentlyShown = modal?.classList.contains('active');
+
+                    console.log('🔍 V4.93 Modal check:', {
+                        showModalFlag: gameState.showModal,
+                        shouldShowModal,
+                        hasCards,
+                        isCardsMode,
+                        isModalCurrentlyShown,
+                        currentChallenge: gameState.currentChallenge?.name || 'none'
+                    });
+
+                    // Show modal when Firebase showModal flag is true
+                    if (shouldShowModal && isCardsMode && hasCards && !isModalCurrentlyShown) {
+                        console.log('📥 showModal=true - showing modal for all players');
                         setTimeout(() => showCategorySelectionModal(), 100);
+                    }
+
+                    // Hide modal when Firebase showModal flag is false
+                    if (gameState.showModal === false && isModalCurrentlyShown) {
+                        console.log('🎯 showModal=false - closing modal for all players');
+                        modal.classList.remove('active');
                     }
 
                     if (gameState.passedPlayers && !Array.isArray(gameState.passedPlayers)) {
@@ -1820,33 +1841,47 @@
                         console.log('♻️ Continuous UI update');
                         updateGameUI();
 
-                        // V4.82: Handle 'roundEnd' phase - ONLY last player to pass calls endRound
-                        // This prevents both clients from calling endRound simultaneously
-                        if (gameState.phase === 'roundEnd' && !window.endRoundCalled) {
-                            // Only the player who was last to pass should call endRound
+                        // V4.88: Check if all players passed - if so, advance round (only first guesser does this)
+                        if (gameState.allPassedFlag && !window.roundAdvancing) {
+                            // Only the first guesser should call endRound() to prevent race conditions
                             const playerIds = window.playerIds || [];
-                            const lastToPassId = playerIds[gameState.lastToPass];
-                            const isLastToPasser = lastToPassId === window.currentUserId;
+                            const firstGuesserId = playerIds[gameState.firstGuesser];
+                            const isFirstGuesser = firstGuesserId === window.currentUserId;
 
-                            if (isLastToPasser) {
-                                console.log('🏁 Round end - I was last to pass, calling endRound()');
-                                window.endRoundCalled = true;
-                                setTimeout(() => endRound(), 100);
+                            if (isFirstGuesser) {
+                                console.log('🏁 All passed flag detected - advancing round (first guesser only)');
+                                window.roundAdvancing = true;
+                                setTimeout(() => {
+                                    endRound();
+                                    window.roundAdvancing = false;
+                                }, 300);
                             } else {
-                                console.log('🏁 Round end - waiting for last passer to call endRound()');
-                                window.endRoundCalled = true; // Prevent checking again
+                                console.log('🏁 All passed flag detected - waiting for first guesser to advance round');
                             }
                             return;
                         }
 
-                        // V4.81: Handle challenge phase - first guesser draws cards, others wait
+                        // V4.89: Handle challenge phase - first guesser draws cards, others wait
                         const modal = document.getElementById('categoryModal');
                         if (gameState.phase === 'challenge' && gameState.challengeMode === 'cards') {
                             // If no challenge selected and no cards drawn, first guesser should draw cards
-                            if (!gameState.currentChallenge && (!gameState.drawnChallengeCards || gameState.drawnChallengeCards.length === 0)) {
+                            console.log(`🔍 V4.89 Card check:`, {
+                                currentChallenge: gameState.currentChallenge,
+                                currentChallengeType: typeof gameState.currentChallenge,
+                                currentChallengeIsNull: gameState.currentChallenge === null,
+                                drawnCards: gameState.drawnChallengeCards,
+                                drawnCardsLength: gameState.drawnChallengeCards?.length,
+                                round: gameState.round
+                            });
+
+                            // V4.89: Check for null or empty array
+                            const noCards = !gameState.drawnChallengeCards || gameState.drawnChallengeCards.length === 0;
+                            if (!gameState.currentChallenge && noCards) {
                                 const playerIds = window.playerIds || [];
                                 const firstGuesserId = playerIds[gameState.firstGuesser];
                                 const isFirstGuesser = firstGuesserId === window.currentUserId;
+
+                                console.log(`🔍 V4.89 Empty cards detected - isFirstGuesser=${isFirstGuesser}, drawingCards=${window.drawingCards}`);
 
                                 if (isFirstGuesser && !window.drawingCards) {
                                     console.log('🎴 First guesser drawing new challenge cards for round', gameState.round);
@@ -1856,18 +1891,10 @@
                                         window.drawingCards = false;
                                     }, 100);
                                 }
-                            } else if (gameState.drawnChallengeCards && gameState.drawnChallengeCards.length > 0 &&
-                                !gameState.currentChallenge) {
-                                // Cards are ready, no challenge selected yet - show modal for all players
-                                if (modal && !modal.classList.contains('active')) {
-                                    showCategorySelectionModal();
-                                }
-                            } else if (gameState.currentChallenge) {
-                                // Challenge has been selected - close modal
-                                if (modal && modal.classList.contains('active')) {
-                                    modal.classList.remove('active');
-                                }
                             }
+                            // V4.92: Removed duplicate modal show logic that was triggering during gameplay
+                            // Modal only shows via lines 1807-1811 when cards first arrive (using cardStateByRound tracking)
+                            // This prevents modal from appearing mid-round when currentChallenge becomes null
                         }
                     } else {
                         console.log('⏸️ Waiting... phase:', gameState.phase, 'hasStarted:', hasStartedGame);
@@ -1939,8 +1966,10 @@
             if (gameState.challengeMode === 'cards' && isFirstGuesser) {
                 const categories = ['movies', 'countries', 'companies', 'sports'];
 
-                // First round OR no category selected (both passed): draw all cards fresh
-                if (gameState.round === 1 || !gameState.selectedCategory || gameState.drawnChallengeCards.length === 0) {
+                // V4.88: First round OR no previous category: draw all cards fresh
+                // Use previousCategory instead of selectedCategory (which is cleared by endRound)
+                if (gameState.round === 1 || !gameState.previousCategory || gameState.drawnChallengeCards.length === 0) {
+                    console.log(`🎴 Drawing fresh challenge cards (round ${gameState.round}, prevCat: ${gameState.previousCategory})`);
                     gameState.drawnChallengeCards = [];
                     categories.forEach(category => {
                         // Filter out challenges that have been played
@@ -1955,30 +1984,35 @@
                         });
                     });
                 } else {
-                    // Subsequent rounds: replace only the selected category's card
-                    const selectedCategory = gameState.selectedCategory;
+                    // V4.88: Subsequent rounds: replace the previously selected category's card
+                    // Use previousCategory (persists) instead of selectedCategory (cleared by endRound)
+                    const previousCategory = gameState.previousCategory;
+                    console.log(`🔄 Replacing challenge card for category: ${previousCategory}`);
 
                     gameState.drawnChallengeCards = gameState.drawnChallengeCards.map(cardData => {
-                        if (cardData.challenge.category === selectedCategory) {
+                        if (cardData.challenge.category === previousCategory) {
                             // Replace this card with a new one from the same category, excluding played challenges
                             const categoryChallenges = CHALLENGES.filter(c =>
-                                c.category === selectedCategory &&
+                                c.category === previousCategory &&
                                 !gameState.playedChallenges.some(played => played.name === c.name && played.category === c.category)
                             );
 
                             if (categoryChallenges.length === 0) {
                                 // No more challenges available in this category
-                                showNotification(`No more ${selectedCategory} challenges available!`, 'warning');
+                                showNotification(`No more ${previousCategory} challenges available!`, 'warning');
                                 return cardData; // Keep the old card
                             }
 
                             const randomIndex = Math.floor(Math.random() * categoryChallenges.length);
+                            const newChallenge = categoryChallenges[randomIndex];
+                            console.log(`  ✅ Replaced ${previousCategory} card: "${cardData.challenge.name}" → "${newChallenge.name}"`);
                             return {
-                                challenge: categoryChallenges[randomIndex],
+                                challenge: newChallenge,
                                 roundsAvailable: 1
                             };
                         } else {
                             // Keep this card, increment rounds available
+                            console.log(`  ⏩ Keeping ${cardData.challenge.category} card: "${cardData.challenge.name}" (round ${cardData.roundsAvailable + 1})`);
                             return {
                                 challenge: cardData.challenge,
                                 roundsAvailable: cardData.roundsAvailable + 1
@@ -2001,9 +2035,10 @@
             // NOTE: currentPlayer is already set by endRound(), don't overwrite it here
             if (GameModeManager.isOnline() && isFirstGuesser) {
                 GameModeManager.updateGameState({
-                    drawnChallengeCards: gameState.drawnChallengeCards
+                    drawnChallengeCards: gameState.drawnChallengeCards,
+                    showModal: true  // V4.93: Explicit flag to show modal for all players
                 }).then(() => {
-                    console.log('✅ Synced challenge cards to Firebase');
+                    console.log('✅ Synced challenge cards + showModal=true to Firebase');
                 }).catch(err => {
                     console.error('❌ Failed to sync:', err);
                 });
@@ -2034,10 +2069,18 @@
                 const firstGuesser = gameState.players?.[gameState.firstGuesser];
                 const firstGuesserName = firstGuesser?.name || 'Player';
 
+                // V4.92: Check if current player is the first guesser (only they can select)
+                const playerIds = window.playerIds || [];
+                const firstGuesserId = playerIds[gameState.firstGuesser];
+                const isFirstGuesser = firstGuesserId === window.currentUserId;
+                const instructionText = isFirstGuesser
+                    ? `<strong>${firstGuesserName}</strong>, choose one challenge card:`
+                    : `Waiting for <strong>${firstGuesserName}</strong> to choose a challenge card...`;
+
                 // Show challenge cards UI
                 modalContent.innerHTML = `
-                    <h2>Select Challenge Card</h2>
-                    <p style="margin-bottom: 20px;"><strong id="firstGuesserName">${firstGuesserName}</strong>, choose one challenge card:</p>
+                    <h2>Challenge Card Selection</h2>
+                    <p style="margin-bottom: 20px;">${instructionText}</p>
                     <div id="challengeCardsContainer" style="display: grid; gap: 15px;">
                         ${gameState.drawnChallengeCards.map((cardData, idx) => {
                             const challenge = cardData.challenge;
@@ -2050,22 +2093,26 @@
                             };
                             const available = getAvailableTokensForCategory(challenge.category);
 
-                            // Check if there are existing tokens in draft pool from this category
-                            const hasExistingDraft = (gameState.previousCategory === challenge.category && gameState.draftPool.length > 0);
-                            const existingTokenCount = hasExistingDraft ? (1 + gameState.draftPool.length) : 0; // 1 center + draft pool
-                            const tokensNeeded = hasExistingDraft ? Math.max(0, 13 - existingTokenCount) : 13;
+                            // V4.88: Check if this category was used in previous round (for carryover display)
+                            // Note: draftPool/centerToken are cleared by endRound(), but previousCategory persists
+                            const wasPreviousCategory = (gameState.previousCategory === challenge.category);
+                            const tokensNeeded = 13; // Always need 13 for a new round
 
                             const canSelect = available >= tokensNeeded;
                             const isNew = roundsAvailable === 1;
 
+                            // V4.92: Only first guesser can click cards
+                            const isClickable = canSelect && isFirstGuesser;
+
                             return `
                                 <div class="challenge-card ${!canSelect ? 'disabled' : ''}"
-                                     onclick="${canSelect ? `selectChallengeCard(${idx})` : ''}"
+                                     onclick="${isClickable ? `selectChallengeCard(${idx})` : ''}"
                                      style="background: ${canSelect ? 'white' : '#f5f5f5'};
                                             padding: 20px;
                                             border-radius: 12px;
                                             border: 3px solid ${canSelect ? '#764ba2' : '#ddd'};
-                                            cursor: ${canSelect ? 'pointer' : 'not-allowed'};
+                                            cursor: ${isClickable ? 'pointer' : (canSelect ? 'default' : 'not-allowed')};
+                                            opacity: ${isFirstGuesser ? '1' : '0.7'};
                                             transition: all 0.2s;
                                             position: relative;">
                                     ${!isNew ? `
@@ -2087,8 +2134,8 @@
                                     </div>
                                     <div style="font-size: 16px; color: #333; margin-bottom: 5px;">${challenge.name}</div>
                                     <div style="font-size: 12px; color: ${canSelect ? '#666' : '#999'};">
-                                        ${hasExistingDraft ?
-                                            `🔄 ${existingTokenCount} in draft pool<br>${available} in pool · Need ${tokensNeeded} more` :
+                                        ${wasPreviousCategory ?
+                                            `🔄 Same as last round<br>${available} tokens available` :
                                             canSelect ? `${available} tokens available` : '⚠️ Not enough tokens'
                                         }
                                     </div>
@@ -2283,9 +2330,10 @@
                     draftPool: gameState.draftPool,
                     passedPlayers: Array.from(gameState.passedPlayers),
                     currentPlayer: gameState.currentPlayer,
-                    selectedDraftToken: null
+                    selectedDraftToken: null,
+                    showModal: false  // V4.93: Hide modal for all players after selection
                 });
-                console.log('✅ Synced challenge selection to Firebase');
+                console.log('✅ Synced challenge selection + showModal=false to Firebase');
             }
 
             // Update UI
@@ -2330,27 +2378,53 @@
         }
 
         function getAvailableTokensForCategory(category) {
-            const pool = gameState.categoryPools?.[category];
-            if (!pool) return 0;
+            // V4.87: Calculate available tokens based on original pool size minus tokens in use
+            // This ensures all clients show the same count regardless of local pool state
 
-            // Calculate tokens in use by players and in play
+            const originalPoolSizes = {
+                movies: typeof MOVIES_TOKENS !== 'undefined' ? MOVIES_TOKENS.length : 40,
+                countries: typeof COUNTRIES_TOKENS !== 'undefined' ? COUNTRIES_TOKENS.length : 40,
+                companies: typeof COMPANIES_TOKENS !== 'undefined' ? COMPANIES_TOKENS.length : 0,
+                sports: typeof SPORTS_TOKENS !== 'undefined' ? SPORTS_TOKENS.length : 0
+            };
+
+            const totalTokens = originalPoolSizes[category] || 0;
+            if (totalTokens === 0) return 0;
+
+            // Count tokens currently in use
             let tokensInUse = 0;
 
-            // Count tokens in player hands and thisRound
-            if (Array.isArray(gameState.players)) {
-                getPlayersArray().forEach(player => {
-                    if (player && Array.isArray(player.hand)) {
-                        player.hand.forEach(token => {
-                            if (token && token.id && pool.some(t => t.id === token.id)) {
-                                // This is a placeholder check - in reality, we need better tracking
-                            }
-                        });
+            // 1. Count tokens in player hands (cashed out)
+            const players = getPlayersArray();
+            players.forEach(player => {
+                if (player && Array.isArray(player.hand)) {
+                    tokensInUse += player.hand.filter(t => t && t.category === category).length;
+                }
+            });
+
+            // 2. Count tokens in current round (if same category)
+            if (gameState.previousCategory === category || gameState.selectedChallenge?.category === category) {
+                // Center token
+                if (gameState.centerToken && gameState.centerToken.category === category) {
+                    tokensInUse += 1;
+                }
+
+                // Draft pool tokens
+                if (Array.isArray(gameState.draftPool)) {
+                    tokensInUse += gameState.draftPool.filter(t => t && t.category === category).length;
+                }
+
+                // Tokens in play (thisRound arrays)
+                players.forEach(player => {
+                    if (player && Array.isArray(player.thisRound)) {
+                        tokensInUse += player.thisRound.filter(t => t && t.category === category).length;
                     }
                 });
             }
 
-            // For now, just return pool length (will improve token tracking later)
-            return pool.length;
+            const available = totalTokens - tokensInUse;
+            console.log(`📊 Category ${category}: ${totalTokens} total - ${tokensInUse} in use = ${available} available`);
+            return Math.max(0, available);
         }
 
         function confirmCategorySelection() {
@@ -2490,8 +2564,9 @@
                 return; // Exit immediately
             }
 
-            // Check if we're in round transition (challenge cards drawn, waiting for selection)
-            const isRoundTransition = !gameState.selectedCategory && gameState.drawnChallengeCards?.length > 0;
+            // V4.93: Check if we're in round transition (modal being shown)
+            // Modal open = don't show lockout overlay
+            const isRoundTransition = gameState.showModal === true;
 
             // Get player index for logging
             let myPlayerIndex = gameState.currentPlayer;
@@ -2499,7 +2574,7 @@
                 myPlayerIndex = window.playerIds.indexOf(window.currentUserId);
             }
 
-            console.log(`🔍 updateLockedOutState - Player ${myPlayerIndex}: isModalActive=${isModalActive}, isRoundTransition=${isRoundTransition}, hasPassed=${gameState.passedPlayers.has(myPlayerIndex)}`);
+            console.log(`🔍 V4.93 updateLockedOutState - Player ${myPlayerIndex}: isModalActive=${isModalActive}, showModal=${gameState.showModal}, isRoundTransition=${isRoundTransition}, hasPassed=${gameState.passedPlayers.has(myPlayerIndex)}`);
 
             if (isRoundTransition) {
                 // Round transition - hide lockout overlay regardless of pass state
@@ -2507,7 +2582,7 @@
                 const gameScreen = document.getElementById('gameScreen');
                 if (overlay) overlay.classList.remove('active');
                 if (gameScreen) gameScreen.classList.remove('locked-out');
-                console.log(`🔓 Player ${myPlayerIndex} unlocked - round transition`);
+                console.log(`🔓 Player ${myPlayerIndex} unlocked - round transition (showModal=true)`);
                 return; // Exit early
             }
 
@@ -2786,25 +2861,46 @@
                     thisRound: player.thisRound
                 });
 
+                // V4.86: Advance turn after correct guess
+                const playerCount = Object.keys(gameState.players).length;
+                let nextPlayerIndex = gameState.currentPlayer;
+                let attempts = 0;
+                do {
+                    nextPlayerIndex = (nextPlayerIndex + 1) % playerCount;
+                    attempts++;
+                    if (attempts > playerCount) break;
+                } while (gameState.passedPlayers.has(nextPlayerIndex));
+
                 GameModeManager.updateGameState({
                     centerToken: newCenterToken,
                     draftPool: newDraftPool,
                     selectedDraftToken: newSelectedDraftToken,
-                    passedPlayers: Array.from(gameState.passedPlayers), // Preserve passed players
+                    passedPlayers: Array.from(gameState.passedPlayers),
+                    currentPlayer: nextPlayerIndex, // V4.86: Advance turn
                     lastAction: actionData
                 });
 
-                console.log('✅ Firebase update sent - waiting for sync');
+                console.log(`✅ Correct guess - turn advanced to Player ${nextPlayerIndex}`);
             } else {
-                // LOCAL MODE: Update state directly
+                // LOCAL MODE: Update state directly and advance turn
                 gameState.centerToken = newCenterToken;
                 gameState.draftPool = newDraftPool;
                 gameState.selectedDraftToken = newSelectedDraftToken;
+
+                const playerCount = getPlayerCount();
+                let nextPlayerIndex = gameState.currentPlayer;
+                let attempts = 0;
+                do {
+                    nextPlayerIndex = (nextPlayerIndex + 1) % playerCount;
+                    attempts++;
+                    if (attempts > playerCount) break;
+                } while (gameState.passedPlayers.has(nextPlayerIndex));
+
+                gameState.currentPlayer = nextPlayerIndex;
                 document.getElementById('guessArea').classList.remove('active');
             }
 
             // Update UI after animation
-            // NOTE: Do NOT advance turn - player keeps their turn after correct guess!
             setTimeout(() => {
                 updateGameUI();
             }, 400);
@@ -2916,11 +3012,11 @@
             const allPassed = newPassedPlayers.size === playerCount;
             console.log('   All passed?', allPassed, `(${newPassedPlayers.size} === ${getPlayerCount()})`);
 
-            // V4.75: If all passed after wrong guess, change phase to 'roundEnd' instead of calling endRound
+            // V4.84: If all passed after wrong guess, set allPassedFlag
             if (allPassed && GameModeManager.isOnline()) {
-                console.log('🏁 All players passed (wrong guess) - changing phase to roundEnd');
+                console.log('🏁 All players passed (wrong guess) - setting allPassedFlag');
                 GameModeManager.updateGameState({
-                    phase: 'roundEnd'
+                    allPassedFlag: true
                 });
                 return;
             }
@@ -2930,11 +3026,18 @@
                 console.log('⏰ Wrong guess timeout fired');
                 updateGameUI();
 
-                // Re-check if all players have passed (might have changed during animation)
+                // V4.88: In online mode, allPassedFlag is set above and Firebase listener will call endRound()
+                // Only handle turn advancement in local mode or when not all passed
+                if (GameModeManager.isOnline()) {
+                    console.log('✅ Online mode - Firebase listener will handle round end if needed');
+                    return;
+                }
+
+                // LOCAL MODE ONLY: Re-check if all players have passed
                 const allPassedNow = gameState.passedPlayers.size === getPlayerCount();
 
                 if (allPassedNow) {
-                    console.log('🔚 All players now passed - ending round');
+                    console.log('🔚 All players now passed (local mode) - ending round');
                     endRound();
                 } else {
                     console.log('➡️ Not all passed, calling advanceTurn');
@@ -3311,17 +3414,15 @@
                     thisRound: player.thisRound
                 });
 
-                // V4.75: When all players pass, change phase to 'roundEnd' instead of calling endRound
-                // This allows both players to see the modal
+                // V4.84: When all players pass, just sync that fact - don't call endRound here
                 if (allPassed) {
-                    console.log('🏁 All players passed - changing phase to roundEnd');
+                    console.log('🏁 All players passed - syncing state');
                     GameModeManager.updateGameState({
-                        phase: 'roundEnd',
                         passedPlayers: Array.from(gameState.passedPlayers),
                         lastToPass: gameState.lastToPass,
-                        lastAction: actionData
+                        lastAction: actionData,
+                        allPassedFlag: true  // Flag so Firebase listener knows to advance round
                     });
-                    console.log('✅ Phase changed to roundEnd - modal will show for all players');
                     return;
                 }
 
@@ -3418,6 +3519,8 @@
             // Reset state for next round
             gameState.currentChallenge = null;
             gameState.selectedCategory = null;
+            // V4.87: Keep previousCategory - it's used to track carryover between rounds
+            // gameState.previousCategory stays for carryover tracking
             gameState.centerToken = null;
             gameState.draftPool = [];
             gameState.passedPlayers = new Set(); // Clear passed players for new round
@@ -3431,18 +3534,30 @@
             window.endRoundCalled = false;
 
             // Sync state reset to Firebase if online mode
-            // NOTE: Do NOT sync drawnChallengeCards here - only first guesser draws/syncs cards in startNewRound()
+            // V4.89: Clear drawnChallengeCards to trigger startNewRound() via Firebase listener
             if (GameModeManager.isOnline()) {
+                console.log('🔄 V4.89 endRound() syncing to Firebase:', {
+                    round: gameState.round,
+                    currentChallenge: null,
+                    drawnChallengeCards: null
+                });
+
+                // V4.89: Clear local state immediately
+                gameState.drawnChallengeCards = [];
+                gameState.currentChallenge = null;
+
                 GameModeManager.updateGameState({
                     phase: 'challenge', // V4.75: Return to challenge phase
                     round: gameState.round,
                     currentChallenge: null,
                     selectedCategory: null,
+                    previousCategory: gameState.previousCategory, // V4.87: Sync previousCategory for carryover tracking
                     centerToken: null,
                     draftPool: [],
                     passedPlayers: [], // Clear passed players in Firebase
-                    currentPlayer: gameState.firstGuesser // Reset to first guesser for new round
-                    // drawnChallengeCards intentionally NOT synced here - first guesser will draw and sync new cards
+                    currentPlayer: gameState.firstGuesser, // Reset to first guesser for new round
+                    allPassedFlag: false, // V4.84: Clear the all-passed flag
+                    drawnChallengeCards: null // V4.89: Use null instead of [] to force Firebase update
                 });
 
                 // V4.81: In online mode, do NOT call startNewRound here
@@ -3457,7 +3572,7 @@
         // ===== GAME END =====
         function showGameEndScreen() {
             // Sort players by score (descending), then by tokens in hand, then by correct guesses
-            const sortedPlayers = [...gameState.players].sort((a, b) => {
+            const sortedPlayers = Object.values(gameState.players).sort((a, b) => {
                 if (b.score !== a.score) return b.score - a.score;
                 if (b.hand.length !== a.hand.length) return b.hand.length - a.hand.length;
                 return b.correctGuesses - a.correctGuesses;
