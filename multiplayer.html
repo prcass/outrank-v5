@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>4f4 V4.28 - Multiplayer</title>
+    <title>4f4 V4.29 - Multiplayer</title>
 
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
@@ -646,7 +646,7 @@
         <!-- MODE SELECTION SCREEN -->
         <div id="modeSelectionScreen" class="screen active">
             <div class="header">
-                <h1>4f4 V4.28</h1>
+                <h1>4f4 V4.29</h1>
                 <p class="subtitle">Multiplayer</p>
             </div>
 
@@ -692,7 +692,7 @@
         <!-- ONLINE SETUP SCREEN -->
         <div id="onlineSetupScreen" class="screen">
             <div class="header">
-                <h1>4f4 V4.28 - Online</h1>
+                <h1>4f4 V4.29 - Online</h1>
                 <p class="subtitle">Connect with Friends</p>
             </div>
 
@@ -870,7 +870,7 @@
         <!-- GAME SCREEN -->
         <div id="gameScreen" class="screen">
             <div class="header">
-                <h1>4f4 V4.28</h1>
+                <h1>4f4 V4.29</h1>
                 <p class="subtitle">Round <span id="roundNumber">1</span></p>
                 <button id="toggleDataBtn" class="btn btn-secondary" style="position: absolute; top: 20px; right: 20px; padding: 8px 15px; font-size: 0.9em;" onclick="toggleDataVisibility()">
                     👁️ Hide Data
@@ -1650,41 +1650,52 @@
                     gameState.players = fbPlayers; // Restore players object (don't let fbGameState overwrite)
 
                     // Detect opponent actions and show detailed feedback
-                    if (GameModeManager.isOnline() && !GameModeManager.isMyTurn() && fbGameState.lastAction) {
+                    if (GameModeManager.isOnline() && fbGameState.lastAction) {
                         const action = fbGameState.lastAction;
 
                         // Only show if this is a recent action (within last 5 seconds)
                         if (Date.now() - action.timestamp < 5000) {
-                            if (action.type === 'correct_guess') {
-                                const arrow = action.direction === 'higher' ? '⬆️' : '⬇️';
-                                showOpponentAction(
-                                    `${action.playerName} guessed ${arrow} ${action.direction.toUpperCase()} with "${action.draftedToken}" - CORRECT! +1 point`,
-                                    'success',
-                                    8000  // Show for 8 seconds
-                                );
-                                // Highlight the drafted token briefly before it becomes center
-                                const draftedEl = Array.from(document.querySelectorAll('.draft-token')).find(
-                                    el => el.textContent.includes(action.draftedToken)
-                                );
-                                if (draftedEl) {
-                                    highlightToken(draftedEl.id || 'draftToken-' + action.timestamp);
-                                }
-                                setTimeout(() => highlightToken('centerToken'), 500);
-                            } else if (action.type === 'wrong_guess') {
-                                const arrow = action.direction === 'higher' ? '⬆️' : '⬇️';
-                                const tokensMsg = action.tokensLost > 0 ? ` Lost ${action.tokensLost} token(s)!` : '';
-                                showOpponentAction(
-                                    `${action.playerName} guessed ${arrow} ${action.direction.toUpperCase()} with "${action.draftedToken}" - WRONG!${tokensMsg} Player is OUT`,
-                                    'warning',
-                                    8000  // Show for 8 seconds
-                                );
-                                highlightToken('centerToken');
-                            } else if (action.type === 'cash_out') {
+                            // Cash outs and passes should show for ALL players (not just opponents)
+                            if (action.type === 'cash_out') {
                                 showOpponentAction(
                                     `${action.playerName} cashed out ${action.tokenCount} tokens (${action.tag}) for ${action.points} points! 💰`,
                                     'success',
                                     8000  // Show for 8 seconds
                                 );
+                            } else if (action.type === 'pass') {
+                                let message = `${action.playerName} passed. Tokens moved to hand (safe).`;
+                                if (action.isFirstToPass) {
+                                    message = `${action.playerName} passed FIRST. Will go first next round!`;
+                                }
+                                showOpponentAction(message, 'info', 8000);
+                            }
+                            // Other actions only show for opponents
+                            else if (!GameModeManager.isMyTurn()) {
+                                if (action.type === 'correct_guess') {
+                                    const arrow = action.direction === 'higher' ? '⬆️' : '⬇️';
+                                    showOpponentAction(
+                                        `${action.playerName} guessed ${arrow} ${action.direction.toUpperCase()} with "${action.draftedToken}" - CORRECT! +1 point`,
+                                        'success',
+                                        8000  // Show for 8 seconds
+                                    );
+                                    // Highlight the drafted token briefly before it becomes center
+                                    const draftedEl = Array.from(document.querySelectorAll('.draft-token')).find(
+                                        el => el.textContent.includes(action.draftedToken)
+                                    );
+                                    if (draftedEl) {
+                                        highlightToken(draftedEl.id || 'draftToken-' + action.timestamp);
+                                    }
+                                    setTimeout(() => highlightToken('centerToken'), 500);
+                                } else if (action.type === 'wrong_guess') {
+                                    const arrow = action.direction === 'higher' ? '⬆️' : '⬇️';
+                                    const tokensMsg = action.tokensLost > 0 ? ` Lost ${action.tokensLost} token(s)!` : '';
+                                    showOpponentAction(
+                                        `${action.playerName} guessed ${arrow} ${action.direction.toUpperCase()} with "${action.draftedToken}" - WRONG!${tokensMsg} Player is OUT`,
+                                        'warning',
+                                        8000  // Show for 8 seconds
+                                    );
+                                    highlightToken('centerToken');
+                                }
                             }
                         }
                     }
@@ -2950,15 +2961,14 @@
             gameState.passedPlayers.add(gameState.currentPlayer);
 
             // Check if this player is now the last one standing (only 1 non-passed player remains)
-            const nonPassedCount = getPlayerCount() - gameState.passedPlayers.size;
+            const playerCount = GameModeManager.isLocal() ? getPlayerCount() : Object.keys(gameState.players).length;
+            const nonPassedCount = playerCount - gameState.passedPlayers.size;
             const isLastStanding = nonPassedCount === 1;
 
             // First to pass becomes first guesser next round
-            if (gameState.passedPlayers.size === 1) {
+            const isFirstToPass = gameState.passedPlayers.size === 1;
+            if (isFirstToPass) {
                 gameState.firstGuesser = gameState.currentPlayer;
-                showNotification(`${player.name} passed FIRST. Tokens moved to hand (safe). Will go first next round!`, 'info');
-            } else {
-                showNotification(`${player.name} passed. Tokens moved to hand (safe).`, 'info');
             }
 
             // Award last standing trophy when only 1 player remains active
@@ -2967,12 +2977,48 @@
                 const lastStandingIndex = getPlayersArray().findIndex((p, idx) => !gameState.passedPlayers.has(idx));
                 if (lastStandingIndex !== -1) {
                     gameState.lastToPass = lastStandingIndex;
-                    updateGameUI(); // Update to show trophy immediately
                 }
             }
 
-            // Advance turn
-            advanceTurn();
+            // Create action metadata for opponent feedback
+            const actionData = {
+                type: 'pass',
+                playerName: player.name,
+                isFirstToPass: isFirstToPass,
+                isLastStanding: isLastStanding,
+                timestamp: Date.now()
+            };
+
+            // Calculate next player
+            const nextPlayer = (gameState.currentPlayer + 1) % playerCount;
+
+            // Sync to Firebase if online mode
+            if (GameModeManager.isOnline()) {
+                const playerIds = Object.keys(gameState.players);
+                const currentPlayerId = playerIds[gameState.currentPlayer];
+
+                // Update player data
+                GameModeManager.updatePlayer(currentPlayerId, {
+                    hand: player.hand,
+                    thisRound: player.thisRound
+                });
+
+                // Update game state including turn advancement
+                GameModeManager.updateGameState({
+                    passedPlayers: Array.from(gameState.passedPlayers),
+                    firstGuesser: gameState.firstGuesser,
+                    lastToPass: gameState.lastToPass,
+                    lastAction: actionData,
+                    currentPlayer: nextPlayer
+                });
+
+                console.log('✅ Pass synced to Firebase with turn advancement');
+            } else {
+                // LOCAL MODE: Update state directly
+                gameState.currentPlayer = nextPlayer;
+            }
+
+            updateGameUI();
         }
 
         function endRound() {
