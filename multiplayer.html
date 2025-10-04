@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>4f4 V4.75 - Multiplayer</title>
+    <title>4f4 V4.79 - Multiplayer</title>
 
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
@@ -696,7 +696,7 @@
         <!-- MODE SELECTION SCREEN -->
         <div id="modeSelectionScreen" class="screen active">
             <div class="header">
-                <h1>4f4 V4.75</h1>
+                <h1>4f4 V4.79</h1>
                 <p class="subtitle">Multiplayer</p>
             </div>
 
@@ -750,7 +750,7 @@
         <!-- ONLINE SETUP SCREEN -->
         <div id="onlineSetupScreen" class="screen">
             <div class="header">
-                <h1>4f4 V4.75 - Online</h1>
+                <h1>4f4 V4.79 - Online</h1>
                 <p class="subtitle">Connect with Friends</p>
             </div>
 
@@ -936,7 +936,7 @@
             </div>
 
             <div class="header">
-                <h1>4f4 V4.75</h1>
+                <h1>4f4 V4.79</h1>
                 <p class="subtitle" id="playerNameDisplay" style="font-weight: bold; color: #667eea; margin-bottom: 5px;">Loading...</p>
                 <p class="subtitle">Round <span id="roundNumber">1</span></p>
                 <button id="toggleDataBtn" class="btn btn-secondary" style="position: absolute; top: 20px; right: 20px; padding: 8px 15px; font-size: 0.9em;" onclick="toggleDataVisibility()">
@@ -3328,44 +3328,6 @@
                 player.hand.push(...player.thisRound);
                 player.thisRound = [];
             });
-
-            // Award "last standing" bonus (+1 point to last person to pass)
-            if (gameState.lastToPass !== undefined && gameState.lastToPass !== null) {
-                const lastPlayer = getPlayerByIndex(gameState.lastToPass);
-                if (lastPlayer) {
-                    lastPlayer.score += 1;
-                    console.log(`💰 Awarded +1 bonus to ${lastPlayer.name}, new score: ${lastPlayer.score}`);
-
-                    // Sync score to Firebase if online mode
-                    if (GameModeManager.isOnline()) {
-                        const playerIds = window.playerIds || Object.keys(gameState.players || {});
-                        const lastPlayerId = playerIds[gameState.lastToPass];
-                        GameModeManager.updatePlayer(lastPlayerId, {
-                            score: lastPlayer.score
-                        });
-                        console.log(`🔥 Synced score update to Firebase for ${lastPlayer.name}`);
-                    }
-
-                    // Show celebration animation (only in browser with DOM)
-                    const playerPanels = document.querySelectorAll('.player-info');
-                    if (playerPanels[gameState.lastToPass]) {
-                        const panel = playerPanels[gameState.lastToPass];
-                        panel.classList.add('animate-celebrate');
-                        setTimeout(() => panel.classList.remove('animate-celebrate'), 800);
-
-                        // Floating points
-                        if (typeof showFloatingPoints === 'function') {
-                            showFloatingPoints('+1 🏆', panel);
-                        }
-                    }
-
-                    if (typeof showNotification === 'function') {
-                        showNotification(`🏆 ${lastPlayer.name} was last standing! +1 point bonus`, 'success');
-                    }
-                } else {
-                    console.warn(`⚠️ lastToPass player ${gameState.lastToPass} not found - skipping bonus`);
-                }
-            }
 
             // Return draft pool + center token to category pool (they stay in their category)
             if (gameState.selectedCategory) {
