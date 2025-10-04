@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>4f4 V4.34-debug - Multiplayer</title>
+    <title>4f4 V4.34 - Multiplayer</title>
 
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
@@ -646,7 +646,7 @@
         <!-- MODE SELECTION SCREEN -->
         <div id="modeSelectionScreen" class="screen active">
             <div class="header">
-                <h1>4f4 V4.34-debug</h1>
+                <h1>4f4 V4.34</h1>
                 <p class="subtitle">Multiplayer</p>
             </div>
 
@@ -692,7 +692,7 @@
         <!-- ONLINE SETUP SCREEN -->
         <div id="onlineSetupScreen" class="screen">
             <div class="header">
-                <h1>4f4 V4.34-debug - Online</h1>
+                <h1>4f4 V4.34 - Online</h1>
                 <p class="subtitle">Connect with Friends</p>
             </div>
 
@@ -870,7 +870,7 @@
         <!-- GAME SCREEN -->
         <div id="gameScreen" class="screen">
             <div class="header">
-                <h1>4f4 V4.34-debug</h1>
+                <h1>4f4 V4.34</h1>
                 <p class="subtitle">Round <span id="roundNumber">1</span></p>
                 <button id="toggleDataBtn" class="btn btn-secondary" style="position: absolute; top: 20px; right: 20px; padding: 8px 15px; font-size: 0.9em;" onclick="toggleDataVisibility()">
                     👁️ Hide Data
@@ -1714,13 +1714,10 @@
                     }
                     if (gameState.passedPlayers && !Array.isArray(gameState.passedPlayers)) {
                         gameState.passedPlayers = new Set(Object.values(gameState.passedPlayers));
-                        console.log('🔄 Converted passedPlayers from object to Set:', Array.from(gameState.passedPlayers));
                     } else if (Array.isArray(gameState.passedPlayers)) {
                         gameState.passedPlayers = new Set(gameState.passedPlayers);
-                        console.log('🔄 Converted passedPlayers from array to Set:', Array.from(gameState.passedPlayers));
                     } else if (!gameState.passedPlayers) {
                         gameState.passedPlayers = new Set();
-                        console.log('🔄 Initialized passedPlayers as empty Set');
                     }
 
                     // drawnChallengeCards should come from Firebase in online mode
@@ -2398,20 +2395,17 @@
 
             // Check if current player has passed
             const hasPassed = gameState.passedPlayers.has(gameState.currentPlayer);
-            console.log('🔘 updateActionButtons: currentPlayer =', gameState.currentPlayer, 'hasPassed =', hasPassed, 'passedPlayers =', Array.from(gameState.passedPlayers));
 
             // Disable all actions if player has passed
             if (hasPassed) {
                 document.getElementById('cashOutBtn').disabled = true;
                 document.getElementById('passBtn').disabled = true;
-                console.log('🔒 Buttons disabled - player has passed');
             } else {
                 // Cash out button enabled if player has sets
                 document.getElementById('cashOutBtn').disabled = !canCashOut(player);
 
                 // Pass button enabled if not passed
                 document.getElementById('passBtn').disabled = false;
-                console.log('🔓 Buttons enabled - player active');
             }
         }
 
@@ -3004,7 +2998,6 @@
 
             // Mark player as passed
             gameState.passedPlayers.add(gameState.currentPlayer);
-            console.log('✅ Player', gameState.currentPlayer, 'marked as passed. passedPlayers now:', Array.from(gameState.passedPlayers));
 
             // Check if this player is now the last one standing (only 1 non-passed player remains)
             const playerCount = GameModeManager.isLocal() ? getPlayerCount() : Object.keys(gameState.players).length;
