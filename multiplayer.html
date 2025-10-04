@@ -3284,20 +3284,10 @@
                 GameModeManager.updateGameState({
                     passedPlayers: Array.from(gameState.passedPlayers),
                     lastToPass: gameState.lastToPass,
-                        lastAction: actionData,
-                        currentPlayer: nextPlayerIndex
-                    });
-                    console.log(`✅ Pass synced - turn advanced to Player ${nextPlayerIndex}`);
-                } else {
-                    // All passed - only sync pass state
-                    // endRound() will handle firstGuesser, currentPlayer, round increment, etc.
-                    GameModeManager.updateGameState({
-                        passedPlayers: Array.from(gameState.passedPlayers),
-                        lastToPass: gameState.lastToPass,
-                        lastAction: actionData
-                    });
-                    console.log('✅ Final pass synced to Firebase (endRound will handle turn reset)');
-                }
+                    lastAction: actionData,
+                    currentPlayer: nextPlayerIndex
+                });
+                console.log(`✅ Pass synced - turn advanced to Player ${nextPlayerIndex}`);
             } else {
                 // LOCAL MODE: Advance turn to next active player
                 if (!allPassed) {
