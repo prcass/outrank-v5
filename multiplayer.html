@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>4f4 V4.79 - Multiplayer</title>
+    <title>4f4 V4.80 - Multiplayer</title>
 
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
@@ -696,7 +696,7 @@
         <!-- MODE SELECTION SCREEN -->
         <div id="modeSelectionScreen" class="screen active">
             <div class="header">
-                <h1>4f4 V4.79</h1>
+                <h1>4f4 V4.80</h1>
                 <p class="subtitle">Multiplayer</p>
             </div>
 
@@ -750,7 +750,7 @@
         <!-- ONLINE SETUP SCREEN -->
         <div id="onlineSetupScreen" class="screen">
             <div class="header">
-                <h1>4f4 V4.79 - Online</h1>
+                <h1>4f4 V4.80 - Online</h1>
                 <p class="subtitle">Connect with Friends</p>
             </div>
 
@@ -936,7 +936,7 @@
             </div>
 
             <div class="header">
-                <h1>4f4 V4.79</h1>
+                <h1>4f4 V4.80</h1>
                 <p class="subtitle" id="playerNameDisplay" style="font-weight: bold; color: #667eea; margin-bottom: 5px;">Loading...</p>
                 <p class="subtitle">Round <span id="roundNumber">1</span></p>
                 <button id="toggleDataBtn" class="btn btn-secondary" style="position: absolute; top: 20px; right: 20px; padding: 8px 15px; font-size: 0.9em;" onclick="toggleDataVisibility()">
@@ -2123,6 +2123,46 @@
             console.log('✅ Called updateLockedOutState() after modal activated');
         }
 
+        function updateCategoryModalTokenCounts() {
+            // Only update if modal is active and showing challenge cards
+            const modal = document.getElementById('categoryModal');
+            if (!modal || !modal.classList.contains('active') || gameState.challengeMode !== 'cards') {
+                return;
+            }
+
+            // Update each challenge card's token count display
+            gameState.drawnChallengeCards.forEach((cardData, idx) => {
+                const challenge = cardData.challenge;
+                const available = getAvailableTokensForCategory(challenge.category);
+
+                // Check if there are existing tokens in draft pool from this category
+                const hasExistingDraft = (gameState.previousCategory === challenge.category && gameState.draftPool.length > 0);
+                const existingTokenCount = hasExistingDraft ? (1 + gameState.draftPool.length) : 0;
+                const tokensNeeded = hasExistingDraft ? Math.max(0, 13 - existingTokenCount) : 13;
+                const canSelect = available >= tokensNeeded;
+
+                // Find the challenge card element and update its token count text
+                const cards = document.querySelectorAll('.challenge-card');
+                if (cards[idx]) {
+                    const tokenInfo = cards[idx].querySelector('div[style*="font-size: 12px"]');
+                    if (tokenInfo) {
+                        tokenInfo.innerHTML = hasExistingDraft ?
+                            `🔄 ${existingTokenCount} in draft pool<br>${available} in pool · Need ${tokensNeeded} more` :
+                            canSelect ? `${available} tokens available` : '⚠️ Not enough tokens';
+                        tokenInfo.style.color = canSelect ? '#666' : '#999';
+                    }
+
+                    // Update card styling if it's no longer selectable
+                    if (!canSelect) {
+                        cards[idx].style.background = '#f5f5f5';
+                        cards[idx].style.border = '3px solid #ddd';
+                        cards[idx].style.cursor = 'not-allowed';
+                        cards[idx].onclick = null;
+                    }
+                }
+            });
+        }
+
         async function selectChallengeCard(cardIndex) {
             // Turn validation for online mode - check if this player is the first guesser
             if (GameModeManager.isOnline()) {
@@ -2406,6 +2446,9 @@
 
             // Update locked out overlay
             updateLockedOutState();
+
+            // Update category modal token counts if modal is active
+            updateCategoryModalTokenCounts();
         }
 
         function updateLockedOutState() {
